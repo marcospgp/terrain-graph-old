@@ -1,0 +1,3 @@
+[submodule "GraphToolsFoundation"]
+	path = GraphToolsFoundation
+	url = git@github.com:marcospgp/com.unity.graphtools.foundation.git
