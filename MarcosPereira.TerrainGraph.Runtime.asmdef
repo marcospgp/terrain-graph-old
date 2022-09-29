@@ -1,0 +1,23 @@
+{
+    "name": "MarcosPereira.TerrainGraph.Runtime",
+    "rootNamespace": "",
+    "references": [
+        "Unity.GraphTools.Foundation.Overdrive.Editor",
+        "Unity.GraphToolsFoundation.Searcher.Editor",
+        "Unity.GraphTools.Foundation.Overdrive",
+        "Unity.GraphTools.Foundation.Overdrive.Model",
+        "Unity.GraphTools.Foundation.Overdrive.CommandStateObserver",
+        "MarcosPereira.TerrainGraph.UI.Editor",
+        "MarcosPereira.UnityUtilities.Runtime",
+        "MarcosPereira.PolygonReducer.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": true,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

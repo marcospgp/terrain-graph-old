@@ -1,0 +1,428 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using MarcosPereira.UnityUtilities;
+using UnityEngine;
+
+namespace MarcosPereira.Terrain {
+    public static class Builder {
+        public static async Task<GameObject> BuildChunk(
+            int x,
+            int z,
+            int width,
+            TerrainNode terrainNode,
+            Material terrainMaterial
+        ) {
+            // Each smoothing iteration relies on neighbor vertices, so we need extra neighbor info
+            // in order to correctly smooth a chunk.
+            // Since smoothing "causality" expands outwards one voxel per iteration, the extra info
+            // required is proportional to the number of smoothing iterations.
+            int borderWidth = terrainNode.smoothingIterations;
+
+            // We need an extra unit of border for side faces to be drawn at the edges when there is
+            // no smoothing and to allow accurate vertex positions when there is smoothing.
+            borderWidth += 1;
+
+            // We need an additional border unit for vertex normals to be calculated correctly at
+            // the edges, which require the adjacent triangles to be accurately smoothed.
+            borderWidth += 1;
+
+            // We need an extra border unit to obtain neighbor info when determining whether voxels
+            // are solid.
+            borderWidth += 1;
+
+            int realWidth = width + (2 * borderWidth);
+            int realX = x - borderWidth;
+            int realZ = z - borderWidth;
+
+            int[,] heightmap = await terrainNode.GetHeightmap(
+                realX,
+                realZ,
+                realWidth
+            );
+
+            // Two 2D maps describing caves: the first is how tall they are, the second is how deep.
+            float[][,] caveMaps = await terrainNode.GetCaveMaps(
+                realX,
+                realZ,
+                realWidth
+            );
+
+            // 3D map specifying whether each voxel is solid.
+            bool[,,] densityMap = Builder.GetDensityMap(
+                heightmap,
+                terrainNode.maxHeight,
+                caveMaps,
+                terrainNode.maxCaveHeight
+            );
+
+            // Calculating density map reduces border by 1 unit
+            borderWidth -= 1;
+
+            // Fixing smoothing level at 1 since it seems like it only
+            // acts as a multiplier for smoothing iterations, no point going
+            // below 1.
+            const float smoothingLevel = 1f;
+
+            Mesh mesh = await Builder.BuildMesh(
+                densityMap,
+                smoothingLevel,
+                terrainNode.smoothingIterations,
+                borderWidth
+            );
+
+            return Builder.BuildGameObject(x, z, mesh, terrainMaterial);
+        }
+
+        private static GameObject BuildGameObject(
+            int x,
+            int z,
+            Mesh mesh,
+            Material terrainMaterial
+        ) {
+            string name = $"chunk_x{x}_z{z}";
+            mesh.name = name;
+
+            var chunk = new GameObject(name);
+            chunk.transform.position = new Vector3(x, 0f, z);
+
+            Renderer CreateChunkObject(string name) {
+                var lod = new GameObject(name);
+
+                MeshFilter meshFilter = lod.AddComponent<MeshFilter>();
+                meshFilter.mesh = mesh;
+
+                MeshRenderer meshRenderer = lod.AddComponent<MeshRenderer>();
+                meshRenderer.material = terrainMaterial;
+
+                lod.transform.SetParent(
+                    chunk.transform,
+                    worldPositionStays: false
+                );
+
+                return meshRenderer;
+            }
+
+            Renderer lod0Renderer = CreateChunkObject("LOD0");
+
+            _ = lod0Renderer.gameObject.AddComponent<MeshCollider>();
+
+            // No terrain LODs for now, they make terrain generation slower,
+            // cause visible glitching when switching happens, and vertex count
+            // isn't a big bottleneck right now.
+            /*
+            Renderer lod1Renderer = CreateChunkObject("LOD1");
+
+            PolygonReducer polygonReducer =
+                lod1Renderer.gameObject.AddComponent<PolygonReducer>();
+
+            polygonReducer.reductionPercent = 75f;
+
+            LODGroup lodGroup = chunk.AddComponent<LODGroup>();
+            var lods = new LOD[] {
+                new LOD(0.2f, new Renderer[] { lod0Renderer }),
+                new LOD(0f, new Renderer[] { lod1Renderer })
+            };
+
+            lodGroup.SetLODs(lods);
+            lodGroup.RecalculateBounds();
+            */
+
+            return chunk;
+        }
+
+        private static async Task<Mesh> BuildMesh(
+            bool[,,] densityMap,
+            float smoothingLevel,
+            int smoothingIterations,
+            int borderWidth
+        ) {
+            var meshData = new MeshData {
+                chunkVertices = new Dictionary<Vector3Int, Vector3>(),
+                borderVertices = new Dictionary<Vector3Int, Vector3>(),
+                chunkTriangles = new List<Vector3Int[]>(),
+                borderTriangles = new List<Vector3Int[]>()
+            };
+
+            await SafeTask.Run(() => {
+                // A list of vertices that will interface with neighboring chunks.
+                // These also have to be included in LOD meshes.
+                var edgeVertices = new List<Vector3Int>();
+
+                void BuildVoxel(int x, int y, int z) =>
+                    VoxelBuilder.BuildVoxel(
+                        new Vector3Int(x, y, z),
+                        densityMap,
+                        borderWidth,
+                        meshData.chunkVertices,
+                        meshData.borderVertices,
+                        meshData.chunkTriangles,
+                        meshData.borderTriangles,
+                        edgeVertices
+                    );
+
+                // Build voxels
+                for (int x = 0; x < densityMap.GetLength(0); x++) {
+                    for (int y = 0; y < densityMap.GetLength(1); y++) {
+                        for (int z = 0; z < densityMap.GetLength(2); z++) {
+                            if (densityMap[x, y, z]) {
+                                BuildVoxel(x, y, z);
+                            }
+                        }
+                    }
+                }
+
+                // Smooth mesh
+                for (int k = 0; k < smoothingIterations; k++) {
+                    Dictionary<Vector3Int, Vector3> newChunkVertices, newBorderVertices;
+
+                    (newChunkVertices, newBorderVertices) = Smoother.SmoothMesh(
+                        meshData.chunkVertices,
+                        meshData.borderVertices,
+                        factor: smoothingLevel
+                    );
+
+                    meshData.chunkVertices = newChunkVertices;
+                    meshData.borderVertices = newBorderVertices;
+                }
+
+                // Build mesh including border in order to get correct vertex
+                // normals at chunk edge
+
+                meshData.vertices = new Vector3[
+                    meshData.chunkVertices.Count + meshData.borderVertices.Count
+                ];
+                var vertexIndices = new Dictionary<Vector3Int, int>();
+                // Used when calculating LOD1 mesh, to avoid messing with edge
+                // vertices and preserve chunk seams
+                var edgeVertexIndices = new List<int>();
+
+                int i = 0;
+
+                foreach (
+                    KeyValuePair<Vector3Int, Vector3> vertex in meshData.chunkVertices
+                ) {
+                    meshData.vertices[i] = vertex.Value;
+                    vertexIndices.Add(vertex.Key, i);
+
+                    if (edgeVertices.Contains(vertex.Key)) {
+                        edgeVertexIndices.Add(i);
+                    }
+
+                    i++;
+                }
+
+                foreach (
+                    KeyValuePair<Vector3Int, Vector3> vertex in meshData.borderVertices
+                ) {
+                    meshData.vertices[i] = vertex.Value;
+                    vertexIndices.Add(vertex.Key, i);
+                    i++;
+                }
+
+                meshData.triangles = new int[
+                    (meshData.chunkTriangles.Count * 3) + (meshData.borderTriangles.Count * 3)
+                ];
+                int j = 0;
+
+                foreach (Vector3Int[] triangle in meshData.chunkTriangles) {
+                    foreach (Vector3Int vertex in triangle) {
+                        meshData.triangles[j] = vertexIndices[vertex];
+                        j++;
+                    }
+                }
+
+                foreach (Vector3Int[] triangle in meshData.borderTriangles) {
+                    foreach (Vector3Int vertex in triangle) {
+                        meshData.triangles[j] = vertexIndices[vertex];
+                        j++;
+                    }
+                }
+            });
+
+            // Create mesh object
+            var mesh = new Mesh();
+
+            if (meshData.vertices.Length > 65535) {
+                // Allow more than 65535 vertices
+                mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            }
+
+            mesh.SetVertices(meshData.vertices);
+            mesh.triangles = meshData.triangles;
+            mesh.RecalculateNormals();
+
+            // Now that vertex smoothing and correct normals at chunk edge have
+            // been calculated, remove extra geometry (chunk borders).
+            // Border vertices, normals, and triangles should be at the end of
+            // their respective arrays, so we just snip the end off.
+
+            int vertexCount = meshData.chunkVertices.Count;
+            var newVertices = new Vector3[vertexCount];
+            var normals = new Vector3[vertexCount];
+            int[] newTriangles = new int[meshData.chunkTriangles.Count * 3];
+
+            await SafeTask.Run(() => {
+                Array.Copy(meshData.vertices, newVertices, newVertices.Length);
+                Array.Copy(meshData.triangles, newTriangles, newTriangles.Length);
+            });
+
+            Array.Copy(mesh.normals, normals, normals.Length);
+
+            mesh.Clear();
+
+            mesh.SetVertices(newVertices);
+            mesh.SetNormals(normals);
+            mesh.triangles = newTriangles;
+
+            // Takes around 5ms for a 64 block wide chunk
+            mesh.Optimize();
+
+            return mesh;
+        }
+
+        private static bool[,,] GetDensityMap(
+            int[,] heightmap,
+            int maxChunkHeight,
+            float[][,] caveMaps,
+            int maxCaveHeight
+        ) {
+            int maxHeight = 0;
+
+            foreach (int h in heightmap) {
+                if (h > maxHeight) {
+                    maxHeight = h;
+                }
+            }
+
+            bool[,,] densityMap = new bool[
+                heightmap.GetLength(0),
+                maxHeight + 1,
+                heightmap.GetLength(1)
+            ];
+
+            float[,] caveHeightMap = caveMaps[0];
+            float[,] caveDepthMap = caveMaps[1];
+
+            // Adding caves to the terrain introduced a possible issue with "diagonal holes" that
+            // look like the following:
+            //
+            // □ □
+            // □ ■ (diagonal
+            // ■ □ hole)
+            // □ □
+            // □ □ (cave here)
+            // ■ ■
+            //
+            // These holes create thin edges where the chunk mesh has no thickness, causing shading
+            // artifacts when the terrain is smoothed.
+            // A diagonal hole may occur along any direction on the XZ plane, including diagonally.
+            //
+            // I gave a lot of thought to this issue. Fixing these holes in a formal way is very
+            // hard, in particular due to how chunks are generated independently - so we can't rely
+            // on too much neighbor information.
+            // Finally, I simply settled on removing terrain above caves that is below a given
+            // thickness.
+            // Since diagonal holes only ever appear on cave tops, this fixes the issue as long as
+            // the height difference between adjacent coordinates is smaller than the minimum
+            // thickness chosen (below pictured failure case with min thickness of 3 and height
+            // difference of also 3):
+            //
+            // □ □
+            // □ ■
+            // □ ■
+            // □ ■
+            // ■ □
+            // ■ □
+            // ■ □
+            // □ □
+
+            bool IsSolid(int x, int y, int z) {
+                int height = heightmap[x, z];
+                float caveHeight = Mathf.Clamp01(caveHeightMap[x, z]) * maxCaveHeight;
+                float caveDepth = (1f - Mathf.Clamp01(caveDepthMap[x, z])) * maxChunkHeight;
+
+                int lowCaveBound = Mathf.RoundToInt(caveDepth - (caveHeight / 2f));
+                int highCaveBound = Mathf.RoundToInt(caveDepth + (caveHeight / 2f));
+
+                // Use > and < and not >= <= to ensure a cave height of 0 does not
+                // translate into a 1-unit-high cave.
+                // y > 0 because ground must be solid (avoid holes in terrain).
+                bool isCave = y > 0 && y > lowCaveBound && y < highCaveBound;
+
+                bool isCaveCeiling = y >= highCaveBound && y <= height;
+
+                // As explained above, remove cave ceilings below a given thickness.
+                if (isCaveCeiling) {
+                    int caveCeilingHeight = height - highCaveBound + 1;
+
+                    if (caveCeilingHeight <= 5) {
+                        return false;
+                    }
+                }
+
+                return y <= height && !isCave;
+            }
+
+            for (int x = 0; x < densityMap.GetLength(0); x++) {
+                for (int y = 0; y < densityMap.GetLength(1); y++) {
+                    for (int z = 0; z < densityMap.GetLength(2); z++) {
+                        densityMap[x, y, z] = IsSolid(x, y, z);
+                    }
+                }
+            }
+
+            bool HasSideFaceSharingNeighbor(Vector3Int voxel) {
+                var neighborDirections = new Vector3Int[] {
+                    new Vector3Int(0, 0, 1),
+                    new Vector3Int(0, 0, -1),
+                    new Vector3Int(1, 0, 0),
+                    new Vector3Int(-1, 0, 0)
+                };
+
+                foreach (Vector3Int d in neighborDirections) {
+                    Vector3Int n = voxel + d;
+
+                    if (densityMap[n.x, n.y, n.z]) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            // Due to relying on immediate sideways neighbor info, border width is reduced by 1
+            // (width & depth are reduced by 2).
+            bool[,,] densityMap2 = new bool[
+                heightmap.GetLength(0) - 2,
+                densityMap.GetLength(1),
+                heightmap.GetLength(1) - 2
+            ];
+
+            // Special case: remove voxels which have no sideways face-sharing neighbors.
+            // This avoids little bumps in the terrain when smoothed.
+            for (int x = 0; x < densityMap2.GetLength(0); x++) {
+                for (int y = 0; y < densityMap2.GetLength(1); y++) {
+                    for (int z = 0; z < densityMap2.GetLength(2); z++) {
+                        if (!HasSideFaceSharingNeighbor(new Vector3Int(x + 1, y, z + 1))) {
+                            densityMap2[x, y, z] = false;
+                        } else {
+                            densityMap2[x, y, z] = densityMap[x + 1, y, z + 1];
+                        }
+                    }
+                }
+            }
+
+            return densityMap2;
+        }
+
+        private struct MeshData {
+            public Dictionary<Vector3Int, Vector3> chunkVertices;
+            public Dictionary<Vector3Int, Vector3> borderVertices;
+            public List<Vector3Int[]> chunkTriangles;
+            public List<Vector3Int[]> borderTriangles;
+            public Vector3[] vertices;
+            public int[] triangles;
+        }
+    }
+}
