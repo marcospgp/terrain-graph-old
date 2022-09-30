@@ -1,5 +1,5 @@
+using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace MarcosPereira.Terrain {
@@ -8,18 +8,16 @@ namespace MarcosPereira.Terrain {
         /// Place environment objects on a given chunk. The chunk object must
         /// already exist in the scene.
         /// </summary>
-        public static async Task PlaceObjects(
+        public static IEnumerator PlaceObjects(
             int worldX,
             int worldZ,
             int chunkWidth,
             Transform chunk,
             TerrainNode terrainNode,
             List<EnvironmentObjectGroup> environmentObjectGroups,
+            float[,] environmentObjectDensity,
             int groundLayer
         ) {
-            float[,] environmentObjectDensity =
-                await terrainNode.GetEnvironmentObjectDensity(worldX, worldZ, chunkWidth);
-
             // Minimum distance between objects
             const float minSpacing = 0.1f;
 
@@ -27,7 +25,7 @@ namespace MarcosPereira.Terrain {
             // uniform distribution.
             float spacing = (float) chunkWidth / Mathf.Floor(chunkWidth / minSpacing);
 
-            void PlaceObject(float i, float j) =>
+            bool PlaceObject(float i, float j) =>
                 TryPlace(
                     environmentObjectGroups,
                     worldX,
@@ -46,13 +44,16 @@ namespace MarcosPereira.Terrain {
             // spaced along chunk borders.
             for (float i = spacing / 2; i < chunkWidth; i += spacing) {
                 for (float j = spacing / 2; j < chunkWidth; j += spacing) {
-                    PlaceObject(i, j);
+                    if (PlaceObject(i, j)) {
+                        // Place one object per frame to avoid slowing game down.
+                        yield return new WaitForSecondsRealtime(0.001f);
+                    }
                 }
             }
 
             // Combine chunk and vegetation into a static batch.
             // This was experimentally found to perform better (for grass) than
-            // either GPU instancing or the default scriptable render pipeline
+            // either GPU instancing or scriptable render pipeline's default
             // batching.
             StaticBatchingUtility.Combine(chunk.gameObject);
         }
@@ -60,7 +61,7 @@ namespace MarcosPereira.Terrain {
         /// <summary>
         /// Try to place a single instance of a prefab on a chunk.
         /// </summary>
-        private static void TryPlace(
+        private static bool TryPlace(
             List<EnvironmentObjectGroup> environmentObjectGroups,
             int x,
             int z,
@@ -87,7 +88,7 @@ namespace MarcosPereira.Terrain {
 
             if (random >= density) {
                 // No placing this time
-                return;
+                return false;
             }
 
             float totalFrequency = 0f;
@@ -115,7 +116,7 @@ namespace MarcosPereira.Terrain {
             }
 
             if (prefabList.Count == 0) {
-                return;
+                return false;
             }
 
             // Determine which prefab to place from given list.
@@ -137,13 +138,13 @@ namespace MarcosPereira.Terrain {
                         "placing environment objects on terrain."
                     );
 
-                    return;
+                    return false;
                 }
 
                 // Respect maximum slope
                 float slope = Vector3.Angle(Vector3.up, hit.normal);
                 if (slope > terrainNode.vegetationMaxSlope) {
-                    return;
+                    return false;
                 }
 
                 // Align prefab with ground
@@ -171,7 +172,11 @@ namespace MarcosPereira.Terrain {
                 float scale01 = Hash.Get01(placeX, placeZ, "scale variation");
 
                 obj.transform.localScale *= Mathf.Lerp(minScale, maxScale, scale01);
+
+                return true;
             }
+
+            return false;
         }
     }
 }
