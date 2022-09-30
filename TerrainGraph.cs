@@ -231,15 +231,22 @@ namespace MarcosPereira.Terrain {
             // moved during gameplay, which is not the case.
             chunk.transform.SetParent(this.transform);
 
-            await Environment.PlaceObjects(
-                x * CHUNK_WIDTH,
-                z * CHUNK_WIDTH,
+            int worldX = x * CHUNK_WIDTH;
+            int worldZ = z * CHUNK_WIDTH;
+
+            float[,] environmentObjectDensity =
+                await this.terrainNode.GetEnvironmentObjectDensity(worldX, worldZ, CHUNK_WIDTH);
+
+            _ = this.StartCoroutine(Environment.PlaceObjects(
+                worldX,
+                worldZ,
                 CHUNK_WIDTH,
                 chunk.transform,
                 this.terrainNode,
                 this.environmentObjectGroups,
+                environmentObjectDensity,
                 this.groundLayer
-            );
+            ));
 
             return chunk;
         }
