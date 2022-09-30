@@ -51,7 +51,13 @@ namespace MarcosPereira.Terrain {
 
             for (int i = 0; i < width; i++) {
                 for (int j = 0; j < width; j++) {
-                    vertices[GetIndex(i, j, width)] = new Vector3(i, heightmap[i, j], j);
+                    var vertexPosition = new Vector3(i, heightmap[i, j], j);
+
+                    // Offset vertex by border width, otherwise mesh origin will
+                    // be offset itself
+                    vertexPosition -= new Vector3(1f, 0f, 1f);
+
+                    vertices[GetIndex(i, j, width)] = vertexPosition;
 
                     if (i > 0 && j > 0) {
                         int ti = GetTriangleIndex(i, j, width);

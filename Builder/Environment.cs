@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -15,7 +14,8 @@ namespace MarcosPereira.Terrain {
             int chunkWidth,
             Transform chunk,
             TerrainNode terrainNode,
-            List<EnvironmentObjectGroup> environmentObjectGroups
+            List<EnvironmentObjectGroup> environmentObjectGroups,
+            int groundLayer
         ) {
             float[,] environmentObjectDensity =
                 await terrainNode.GetEnvironmentObjectDensity(worldX, worldZ, chunkWidth);
@@ -36,6 +36,7 @@ namespace MarcosPereira.Terrain {
                     j,
                     terrainNode,
                     chunk,
+                    1 << groundLayer,
                     environmentObjectDensity,
                     spacing
                 );
@@ -67,6 +68,7 @@ namespace MarcosPereira.Terrain {
             float j,
             TerrainNode terrainNode,
             Transform chunk,
+            int groundLayerMask,
             float[,] environmentObjectDensity,
             float densityMultiplier = 1f,
             float scaleVariation = 0f
@@ -88,13 +90,11 @@ namespace MarcosPereira.Terrain {
                 return;
             }
 
-            float avgFrequency = 0f;
+            float totalFrequency = 0f;
 
             foreach (EnvironmentObjectGroup group in environmentObjectGroups) {
-                avgFrequency += group.frequency;
+                totalFrequency += group.frequency;
             }
-
-            avgFrequency /= environmentObjectGroups.Count;
 
             // Determine which object to place
             float random2 = Hash.Get01(placeX, placeZ, "which environment object group");
@@ -105,12 +105,11 @@ namespace MarcosPereira.Terrain {
             float accumulator = 0f;
 
             foreach (EnvironmentObjectGroup group in environmentObjectGroups) {
-                accumulator += group.frequency / avgFrequency;
+                accumulator += group.frequency / totalFrequency;
 
-                if (random2 <= accumulator) {
+                if (accumulator >= random2) {
                     prefabList = group.items;
                     alignWithGround = group.alignWithGround;
-
                     break;
                 }
             }
@@ -125,10 +124,11 @@ namespace MarcosPereira.Terrain {
             GameObject prefab = prefabList[index];
 
             if (Physics.Raycast(
-                new Vector3(placeX, terrainNode.maxHeight + 1f, placeZ),
-                Vector3.down,
-                out RaycastHit hit,
-                terrainNode.maxHeight + 2f
+                origin: new Vector3(placeX, terrainNode.maxHeight * 2f, placeZ),
+                direction: Vector3.down,
+                hitInfo: out RaycastHit hit,
+                maxDistance: Mathf.Infinity,
+                layerMask: groundLayerMask
             )) {
                 // Check parent transform due to LODs
                 if (hit.transform != chunk && hit.transform.parent != chunk) {
@@ -136,6 +136,7 @@ namespace MarcosPereira.Terrain {
                         "Terrain Graph: Hit something unexpected while " +
                         "placing environment objects on terrain."
                     );
+
                     return;
                 }
 

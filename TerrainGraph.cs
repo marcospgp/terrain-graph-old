@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MarcosPereira.UnityUtilities;
 using UnityEngine;
 
 namespace MarcosPereira.Terrain {
@@ -18,20 +19,19 @@ namespace MarcosPereira.Terrain {
         private readonly Dictionary<Vector2Int, GameObject> chunks =
             new Dictionary<Vector2Int, GameObject>();
 
-        [Header("Graph Asset")]
+        [Header("References")]
 
         [SerializeField]
         private TerrainGraphAsset terrainGraphAsset;
 
-        [Header("Material")]
-
         [SerializeField]
         private Material terrainMaterial;
 
-        [Header("Player")]
-
         [SerializeField]
         private Transform player;
+
+        [SerializeField, LayerSelect]
+        private int groundLayer;
 
         [Header("Settings")]
 
@@ -73,6 +73,10 @@ namespace MarcosPereira.Terrain {
 #endif
 
         public async void Start() {
+            if (this.groundLayer == 0) {
+                throw new Exception("Terrain Graph: Ground layer must be set.");
+            }
+
             this.terrainNode =
                 (TerrainNode) this.terrainGraphAsset.GraphModel.NodeModels.Single(
                     nodeModel => nodeModel is TerrainNode
@@ -220,6 +224,8 @@ namespace MarcosPereira.Terrain {
                 this.terrainMaterial
             );
 
+            chunk.layer = this.groundLayer;
+
             // Avoid cluttering the hierarchy root.
             // I believe this would only be costly in performance if the chunks
             // moved during gameplay, which is not the case.
@@ -231,7 +237,8 @@ namespace MarcosPereira.Terrain {
                 CHUNK_WIDTH,
                 chunk.transform,
                 this.terrainNode,
-                this.environmentObjectGroups
+                this.environmentObjectGroups,
+                this.groundLayer
             );
 
             return chunk;
