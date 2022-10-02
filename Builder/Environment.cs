@@ -18,6 +18,23 @@ namespace MarcosPereira.Terrain {
             float[,] environmentObjectDensity,
             int groundLayer
         ) {
+            // Warn user of any non read/write enabled meshes, which will
+            // prevent them from being static batched
+            foreach (EnvironmentObjectGroup group in environmentObjectGroups) {
+                foreach (GameObject go in group.items) {
+                    foreach (MeshFilter filter in go.GetComponentsInChildren<MeshFilter>()) {
+                        if (filter.sharedMesh != null && !filter.sharedMesh.isReadable) {
+                            UnityEngine.Debug.LogWarning(
+                                $"Terrain Graph: Mesh \"{filter.sharedMesh.name}\" in " +
+                                $" environment object \"{go.name}\" is not Read/Write enabled.\n" +
+                                "This will prevent it from being optimized by static batching.\n" +
+                                "Read/Write can be enabled in the mesh's import settings."
+                            );
+                        }
+                    }
+                }
+            }
+
             // Minimum distance between objects
             const float minSpacing = 0.1f;
 
@@ -25,13 +42,21 @@ namespace MarcosPereira.Terrain {
             // uniform distribution.
             float spacing = (float) chunkWidth / Mathf.Floor(chunkWidth / minSpacing);
 
+            // Calculate total frequency
+            float totalFrequency = 0f;
+
+            foreach (EnvironmentObjectGroup group in environmentObjectGroups) {
+                totalFrequency += group.frequency;
+            }
+
             bool PlaceObject(float i, float j) =>
                 TryPlace(
-                    environmentObjectGroups,
                     worldX,
                     worldZ,
                     i,
                     j,
+                    environmentObjectGroups,
+                    totalFrequency,
                     terrainNode,
                     chunk,
                     1 << groundLayer,
@@ -62,11 +87,12 @@ namespace MarcosPereira.Terrain {
         /// Try to place a single instance of a prefab on a chunk.
         /// </summary>
         private static bool TryPlace(
-            List<EnvironmentObjectGroup> environmentObjectGroups,
             int x,
             int z,
             float i,
             float j,
+            List<EnvironmentObjectGroup> environmentObjectGroups,
+            float totalFrequency,
             TerrainNode terrainNode,
             Transform chunk,
             int groundLayerMask,
@@ -89,12 +115,6 @@ namespace MarcosPereira.Terrain {
             if (random >= density) {
                 // No placing this time
                 return false;
-            }
-
-            float totalFrequency = 0f;
-
-            foreach (EnvironmentObjectGroup group in environmentObjectGroups) {
-                totalFrequency += group.frequency;
             }
 
             // Determine which object to place
