@@ -4,6 +4,26 @@ using UnityEngine;
 
 namespace MarcosPereira.Terrain {
     public static class Environment {
+        public static void WarnUnreadableMeshes(List<EnvironmentObjectGroup> envObjGroups) {
+            static void LogReadWriteWarning(string meshName, string objName) =>
+                UnityEngine.Debug.LogWarning(
+                    $"Terrain Graph: Mesh \"{meshName}\" in " +
+                    $" environment object \"{objName}\" is not Read/Write enabled.\n" +
+                    "This will prevent it from being optimized by static batching.\n" +
+                    "Read/Write can be enabled in the mesh's import settings."
+                );
+
+            foreach (EnvironmentObjectGroup group in envObjGroups) {
+                foreach (GameObject go in group.items) {
+                    foreach (MeshFilter filter in go.GetComponentsInChildren<MeshFilter>()) {
+                        if (filter.sharedMesh != null && !filter.sharedMesh.isReadable) {
+                            LogReadWriteWarning(filter.sharedMesh.name, go.name);
+                        }
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Place environment objects on a given chunk. The chunk object must
         /// already exist in the scene.
@@ -16,25 +36,9 @@ namespace MarcosPereira.Terrain {
             TerrainNode terrainNode,
             List<EnvironmentObjectGroup> environmentObjectGroups,
             float[,] environmentObjectDensity,
-            int groundLayer
+            int groundLayer,
+            bool useStaticBatching
         ) {
-            // Warn user of any non read/write enabled meshes, which will
-            // prevent them from being static batched
-            foreach (EnvironmentObjectGroup group in environmentObjectGroups) {
-                foreach (GameObject go in group.items) {
-                    foreach (MeshFilter filter in go.GetComponentsInChildren<MeshFilter>()) {
-                        if (filter.sharedMesh != null && !filter.sharedMesh.isReadable) {
-                            UnityEngine.Debug.LogWarning(
-                                $"Terrain Graph: Mesh \"{filter.sharedMesh.name}\" in " +
-                                $" environment object \"{go.name}\" is not Read/Write enabled.\n" +
-                                "This will prevent it from being optimized by static batching.\n" +
-                                "Read/Write can be enabled in the mesh's import settings."
-                            );
-                        }
-                    }
-                }
-            }
-
             // Minimum distance between objects
             const float minSpacing = 0.1f;
 
@@ -71,16 +75,17 @@ namespace MarcosPereira.Terrain {
                 for (float j = spacing / 2; j < chunkWidth; j += spacing) {
                     if (PlaceObject(i, j)) {
                         // Place one object per frame to avoid slowing game down.
-                        yield return new WaitForSecondsRealtime(0.001f);
+                        yield return null;
                     }
                 }
             }
 
-            // Combine chunk and vegetation into a static batch.
-            // This was experimentally found to perform better (for grass) than
-            // either GPU instancing or scriptable render pipeline's default
-            // batching.
-            StaticBatchingUtility.Combine(chunk.gameObject);
+            if (useStaticBatching) {
+                // Combine chunk and vegetation into a static batch.
+                // This was experimentally found to perform better than
+                // SRP batching or GPU instancing.
+                StaticBatchingUtility.Combine(chunk.gameObject);
+            }
         }
 
         /// <summary>
