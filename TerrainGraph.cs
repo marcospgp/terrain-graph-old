@@ -40,6 +40,14 @@ namespace MarcosPereira.Terrain {
         private int viewDistance = 4;
 
         [Header("Environment")]
+
+        [SerializeField]
+        [Tooltip(
+            "Requires all environment object meshes to be Read/Write enabled.\n" +
+            "This should be kept enabled unless you are sure it does not help performance."
+        )]
+        private bool useStaticBatching = true;
+
         [SerializeField]
         private List<EnvironmentObjectGroup> environmentObjectGroups;
 
@@ -74,7 +82,15 @@ namespace MarcosPereira.Terrain {
 
         public async void Start() {
             if (this.groundLayer == 0) {
-                throw new Exception("Terrain Graph: Ground layer must be set.");
+                throw new Exception(
+                    "Terrain Graph: Ground layer must be set in inspector."
+                );
+            }
+
+            // Warn user of any non read/write enabled meshes, which will
+            // prevent them from being static batched
+            if (this.useStaticBatching) {
+                Environment.WarnUnreadableMeshes(this.environmentObjectGroups);
             }
 
             this.terrainNode =
@@ -245,7 +261,8 @@ namespace MarcosPereira.Terrain {
                 this.terrainNode,
                 this.environmentObjectGroups,
                 environmentObjectDensity,
-                this.groundLayer
+                this.groundLayer,
+                this.useStaticBatching
             ));
 
             return chunk;
