@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -52,7 +53,7 @@ namespace MarcosPereira.Terrain {
         private List<EnvironmentObjectGroup> environmentObjectGroups;
 
         private TerrainNode terrainNode;
-        // private Vector2Int centerChunk = Vector2Int.zero;
+        private Vector2Int centerChunk = Vector2Int.zero;
         private Task buildTask;
         private CancellationTokenSource cancelTokenSource;
 
@@ -102,16 +103,15 @@ namespace MarcosPereira.Terrain {
 
             this.cancelTokenSource = new CancellationTokenSource();
 
-            this.buildTask = this.BuildOnce(center, this.cancelTokenSource.Token);
+            CancellationToken token = this.cancelTokenSource.Token;
 
-            // TODO: monitor player position
-            // Task monitor = this.MonitorPlayerPosition(token);
+            this.buildTask = this.BuildOnce(center, token);
+
+            Task monitor = this.MonitorPlayerPosition(token);
 
             // Listen for exceptions other than cancellation
             try {
-                // await Task.WhenAll(new Task[] { this.buildTask, monitor });
-
-                await this.buildTask;
+                await Task.WhenAll(new Task[] { this.buildTask, monitor });
             } catch (OperationCanceledException) {
             }
         }
@@ -150,9 +150,7 @@ namespace MarcosPereira.Terrain {
             async Task Build(int x, int z) {
                 token.ThrowIfCancellationRequested();
 
-                Vector2Int key = center + new Vector2Int(x, z);
-
-                GameObject chunk = await this.BuildChunk(key.x, key.y);
+                GameObject chunk = await this.BuildChunk(center.x + x, center.y + z);
 
                 if (token.IsCancellationRequested) {
                     Destroy(chunk);
@@ -160,34 +158,6 @@ namespace MarcosPereira.Terrain {
                 }
             }
         }
-
-        // private async Task MonitorPlayerPosition(CancellationToken token) {
-        //     while (true) {
-        //         await Task.Delay(1000, token);
-
-        //         token.ThrowIfCancellationRequested();
-
-        //         if (this.player == null) {
-        //             continue;
-        //         }
-
-        //         // Determine which chunk player is in initially; Call it "center chunk".
-        //         // If they move 2 chunks away from the center chunk, update chunks around them and
-        //         // reassign the center chunk.
-        //         // The 2x2 chunk area check ensures that there's no hard boundary that can cause
-        //         // chunk regeneration by repeatedly being crossed.
-
-        //         Vector2Int playerChunk = this.GetPlayerChunk(this.player);
-
-        //         float distance = Vector2Int.Distance(this.centerChunk, playerChunk);
-
-        //         UnityEngine.Debug.Log($"Distance from center chunk: {distance} max: 2");
-
-        //         if (distance >= 2f) {
-        //             await this.UpdateCenterChunk(playerChunk);
-        //         }
-        //     }
-        // }
 
         private Vector2Int GetPlayerChunk(Transform player) {
             if (player == null) {
@@ -199,37 +169,89 @@ namespace MarcosPereira.Terrain {
             return new Vector2Int(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.z));
         }
 
-        // private async Task UpdateCenterChunk(Vector2Int newCenterChunk) {
-        //     this.centerChunk = newCenterChunk;
+        private async Task MonitorPlayerPosition(CancellationToken token) {
+            while (true) {
+                await Task.Delay(1000, token);
 
-        //     foreach (GameObject chunk in this.chunks.Values) {
-        //         chunk.SetActive(false);
-        //     }
+                token.ThrowIfCancellationRequested();
 
-        //     var activeChunkList = new List<Vector2Int> {
-        //         CHUNK_WIDTH * this.centerChunk
-        //     };
+                if (this.player == null) {
+                    continue;
+                }
 
-        //     int start = -1 * (this.viewDistance / 2);
-        //     int end = this.viewDistance / 2;
+                // Update visible chunks when player is too far from current
+                // "center" chunk.
+                // One must be careful when setting the distance at which this
+                // is done, to avoid a hard boundary that can cause chunk
+                // regeneration by repeatedly being crossed.
+                // Here, we set it to the length of a chunk's diagonal.
 
-        //     for (int i = start; i <= end; i++) {
-        //         for (int j = start; j <= end; j++) {
-        //             activeChunkList.Add(
-        //                 (this.centerChunk + new Vector2Int(i, j)) * CHUNK_WIDTH
-        //             );
-        //         }
-        //     }
+                float maxDistance = Mathf.Sqrt(CHUNK_WIDTH * CHUNK_WIDTH * 2f);
 
-        //     foreach (Vector2Int pos in activeChunkList) {
-        //         if (this.chunks.TryGetValue(pos, out GameObject obj)) {
-        //             obj.SetActive(true);
-        //         } else {
-        //             GameObject chunk = await this.BuildChunk(pos.x, pos.y);
-        //             this.chunks.Add(pos, chunk);
-        //         }
-        //     }
-        // }
+                var center = new Vector2(
+                    this.centerChunk.x + (CHUNK_WIDTH / 2f),
+                    this.centerChunk.y + (CHUNK_WIDTH / 2f)
+                );
+
+                var playerXZ = new Vector2(
+                    this.player.position.x,
+                    this.player.position.z
+                );
+
+                float distance = (center - playerXZ).magnitude;
+
+                UnityEngine.Debug.Log(
+                    $"Distance from center chunk: {distance:0.00} max: {maxDistance:0.00}"
+                );
+
+                if (distance > maxDistance) {
+                    _ = this.StartCoroutine(this.UpdateCenterChunk());
+                }
+            }
+        }
+
+        private IEnumerator UpdateCenterChunk() {
+            this.centerChunk = new Vector2Int(
+                Mathf.FloorToInt(this.player.position.x / CHUNK_WIDTH),
+                Mathf.FloorToInt(this.player.position.z / CHUNK_WIDTH)
+            );
+
+            foreach (GameObject chunk in this.chunks.Values) {
+                chunk.SetActive(false);
+            }
+
+            var activeChunkList = new List<Vector2Int> {
+                CHUNK_WIDTH * this.centerChunk
+            };
+
+            int start = -1 * (this.viewDistance / 2);
+            int end = this.viewDistance / 2;
+
+            for (int i = start; i <= end; i++) {
+                for (int j = start; j <= end; j++) {
+                    activeChunkList.Add(
+                        (this.centerChunk + new Vector2Int(i, j)) * CHUNK_WIDTH
+                    );
+                }
+            }
+
+            foreach (Vector2Int pos in activeChunkList) {
+                if (this.chunks.TryGetValue(pos, out GameObject obj)) {
+                    obj.SetActive(true);
+                } else {
+                    Task<GameObject> task = this.BuildChunk(pos.x, pos.y);
+
+                    yield return new WaitUntil(() => task.IsCompleted);
+
+                    if (task.Exception != null) {
+                        throw task.Exception;
+                    }
+
+                    GameObject chunk = task.Result;
+                    this.chunks.Add(pos, chunk);
+                }
+            }
+        }
 
         private async Task<GameObject> BuildChunk(int x, int z) {
             GameObject chunk = await Builder.BuildChunk(
