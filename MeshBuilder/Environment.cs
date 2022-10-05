@@ -159,8 +159,9 @@ namespace MarcosPereira.Terrain {
                 // Check parent transform due to LODs
                 if (hit.transform != chunk && hit.transform.parent != chunk) {
                     UnityEngine.Debug.LogWarning(
-                        "Terrain Graph: Hit something unexpected while " +
-                        "placing environment objects on terrain."
+                        "Terrain Graph: Hit unexpected gameobject " +
+                        $"\"{hit.transform.name}\" while placing environment " +
+                        "objects on terrain."
                     );
 
                     return false;

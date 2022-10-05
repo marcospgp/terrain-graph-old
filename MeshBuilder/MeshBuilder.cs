@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 
 namespace MarcosPereira.Terrain {
-    public static class Builder {
+    public static class MeshBuilder {
         public static async Task<GameObject> BuildChunk(
             int x,
             int z,
@@ -15,7 +15,7 @@ namespace MarcosPereira.Terrain {
 
             string name = $"chunk_x{x}_z{z}";
 
-            Mesh mesh = await Builder.BuildMesh(worldX, worldZ, chunkWidth, node, name);
+            Mesh mesh = await MeshBuilder.BuildMesh(worldX, worldZ, chunkWidth, node, name);
 
             var chunk = new GameObject(name);
             chunk.transform.position = new Vector3(worldX, 0f, worldZ);
