@@ -39,7 +39,9 @@ namespace MarcosPereira.Terrain {
             int groundLayer,
             bool useStaticBatching
         ) {
-            // Minimum distance between objects
+            // Minimum distance between objects.
+            // Changing this value will affect the behavior of the vegetation
+            // density port in terrain graph.
             const float minSpacing = 0.1f;
 
             // Space between objects must be multiple of chunk width to ensure
@@ -48,7 +50,6 @@ namespace MarcosPereira.Terrain {
 
             // Calculate total frequency
             float totalFrequency = 0f;
-
             foreach (EnvironmentObjectGroup group in environmentObjectGroups) {
                 totalFrequency += group.frequency;
             }
@@ -156,12 +157,12 @@ namespace MarcosPereira.Terrain {
                 maxDistance: Mathf.Infinity,
                 layerMask: groundLayerMask
             )) {
-                // Check parent transform due to LODs
+                // Check parent transform due to possible LODs
                 if (hit.transform != chunk && hit.transform.parent != chunk) {
                     UnityEngine.Debug.LogWarning(
                         "Terrain Graph: Hit unexpected gameobject " +
                         $"\"{hit.transform.name}\" while placing environment " +
-                        "objects on terrain."
+                        $"objects on \"{chunk.name}\"."
                     );
 
                     return false;

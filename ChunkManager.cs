@@ -23,10 +23,6 @@ namespace MarcosPereira.Terrain {
         }
 
         public void UpdateCenterChunk((int, int) newCenterChunk) {
-            if (this.updateCenterChunkCoroutine != null) {
-                this.terrainGraph.StopCoroutine(this.updateCenterChunkCoroutine);
-            }
-
             this.updateCenterChunkCoroutine = this.terrainGraph.StartCoroutine(
                 this.UpdateCenterChunkCoroutine(newCenterChunk)
             );
@@ -67,6 +63,11 @@ namespace MarcosPereira.Terrain {
         }
 
         private IEnumerator UpdateCenterChunkCoroutine((int, int) newCenterChunk) {
+            // Wait for previous coroutine to end instead of forcing it to stop.
+            // Chunks in the midst of being built would finish being built,
+            // leading to duplicate chunks.
+            yield return this.updateCenterChunkCoroutine;
+
             IEnumerable<(int, int)> newActiveChunks =
                 Spiral(newCenterChunk, this.terrainGraph.viewDistance + 1);
 
@@ -76,11 +77,13 @@ namespace MarcosPereira.Terrain {
                 } else {
                     // Build newly active chunks that weren't built before
 
-                    UnityEngine.Debug.Log($"Building chunk {pos}");
+                    UnityEngine.Debug.Log($"Building chunk x{pos.x}_z{pos.z}");
 
                     Task<GameObject> task = this.BuildChunk(pos.x, pos.z);
 
                     yield return new WaitUntil(() => task.IsCompleted);
+
+                    UnityEngine.Debug.Log($"Built chunk {task.Result.name}");
 
                     if (task.Exception != null) {
                         throw task.Exception;
@@ -94,7 +97,6 @@ namespace MarcosPereira.Terrain {
             // Disable non active chunks.
             foreach (var x in this.chunks) {
                 if (!newActiveChunks.Contains(x.Key)) {
-                    UnityEngine.Debug.Log($"Deactivating chunk {x.Key}");
                     x.Value.SetActive(false);
                 }
             }

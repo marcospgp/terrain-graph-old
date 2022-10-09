@@ -129,10 +129,6 @@ namespace MarcosPereira.Terrain {
                     Mathf.Pow(center.z - this.player.position.z, 2f)
                 );
 
-                UnityEngine.Debug.Log(
-                    $"Distance from center chunk: {distance:0.00} max: {maxDistance:0.00}"
-                );
-
                 if (distance > maxDistance) {
                     (int, int) newCenterChunk = (
                         Mathf.FloorToInt(this.player.position.x / CHUNK_WIDTH),
