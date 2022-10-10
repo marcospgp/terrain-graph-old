@@ -36,10 +36,22 @@ namespace MarcosPereira.Terrain {
         [Header("Environment")]
 
         [Tooltip(
-            "Requires all environment object meshes to be Read/Write enabled.\n" +
-            "This should be kept enabled unless you are sure it does not help performance."
+            "Static batching may improve rendering speed, but at the cost of " +
+            "drastically increased memory usage. Enabling this requires all " +
+            "environment object meshes to be Read/Write enabled in their " +
+            "import settings."
         )]
-        public bool useStaticBatching = true;
+        public bool useStaticBatching = false;
+
+        [Tooltip(
+            "Removing SRP Batcher compatibility makes it possible to use GPU " +
+            "instancing with environment objects (by enabling it in the " +
+            "object's material).\n" +
+            "If the SRP Batcher is not disabled, Unity will prioritize it.\n" +
+            "SRP Batcher compatibility is removed by adding a MaterialPropertyBlock " +
+            "to the Renderer."
+        )]
+        public bool disableSRPBatching = false;
 
         public List<EnvironmentObjectGroup> environmentObjectGroups;
 

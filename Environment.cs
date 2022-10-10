@@ -29,59 +29,59 @@ namespace MarcosPereira.Terrain {
         /// already exist in the scene.
         /// </summary>
         public static IEnumerator PlaceObjects(
-            int worldX,
-            int worldZ,
-            int chunkWidth,
+            (int x, int z) worldPos,
             Transform chunk,
-            TerrainNode terrainNode,
-            List<EnvironmentObjectGroup> environmentObjectGroups,
             float[,] environmentObjectDensity,
-            int groundLayer,
-            bool useStaticBatching
+            TerrainGraph terrainGraph
         ) {
             // Minimum distance between objects.
             // Changing this value will affect the behavior of the vegetation
             // density port in terrain graph.
             const float minSpacing = 0.1f;
 
+            const int chunkWidth = TerrainGraph.CHUNK_WIDTH;
+
             // Space between objects must be multiple of chunk width to ensure
             // uniform distribution.
             float spacing = (float) chunkWidth / Mathf.Floor(chunkWidth / minSpacing);
 
             // Calculate total frequency
-            float totalFrequency = 0f;
-            foreach (EnvironmentObjectGroup group in environmentObjectGroups) {
-                totalFrequency += group.frequency;
+            float envObjTotalFrequency = 0f;
+            foreach (EnvironmentObjectGroup group in terrainGraph.environmentObjectGroups) {
+                envObjTotalFrequency += group.frequency;
             }
 
-            bool PlaceObject(float i, float j) =>
+            bool PlaceObject((float, float) offset) =>
                 TryPlace(
-                    worldX,
-                    worldZ,
-                    i,
-                    j,
-                    environmentObjectGroups,
-                    totalFrequency,
-                    terrainNode,
+                    worldPos,
+                    offset,
                     chunk,
-                    1 << groundLayer,
                     environmentObjectDensity,
-                    spacing
+                    terrainGraph,
+                    envObjTotalFrequency
                 );
+
+            // Limit objects placed per frame to avoid slowing game down
+            const int objectsPerFrame = int.MaxValue;
+            int counter = 0;
 
             // Place objects.
             // Offsetting by half of spacing ensures object is properly
             // spaced along chunk borders.
             for (float i = spacing / 2; i < chunkWidth; i += spacing) {
                 for (float j = spacing / 2; j < chunkWidth; j += spacing) {
-                    if (PlaceObject(i, j)) {
-                        // Place one object per frame to avoid slowing game down.
-                        yield return null;
+                    if (PlaceObject((i, j))) {
+                        counter++;
+
+                        if (counter == objectsPerFrame) {
+                            counter = 0;
+                            yield return null;
+                        }
                     }
                 }
             }
 
-            if (useStaticBatching) {
+            if (terrainGraph.useStaticBatching) {
                 // Combine chunk and vegetation into a static batch.
                 // This was experimentally found to perform better than
                 // SRP batching or GPU instancing.
@@ -93,27 +93,23 @@ namespace MarcosPereira.Terrain {
         /// Try to place a single instance of a prefab on a chunk.
         /// </summary>
         private static bool TryPlace(
-            int x,
-            int z,
-            float i,
-            float j,
-            List<EnvironmentObjectGroup> environmentObjectGroups,
-            float totalFrequency,
-            TerrainNode terrainNode,
+            (int x, int z) worldPos,
+            (float x, float z) offset,
             Transform chunk,
-            int groundLayerMask,
             float[,] environmentObjectDensity,
+            TerrainGraph terrainGraph,
+            float envObjTotalFrequency,
             float densityMultiplier = 1f,
             float scaleVariation = 0f
         ) {
             float density = environmentObjectDensity[
-                Mathf.FloorToInt(i),
-                Mathf.FloorToInt(j)
+                Mathf.FloorToInt(offset.x),
+                Mathf.FloorToInt(offset.z)
             ] * densityMultiplier;
 
             // Get placement coordinates in world space.
-            float placeX = x + i;
-            float placeZ = z + j;
+            float placeX = worldPos.x + offset.x;
+            float placeZ = worldPos.z + offset.z;
 
             // Roll deterministic dice to see if an object should be placed
             float random = Hash.Get01(placeX, placeZ, "environment objects");
@@ -131,8 +127,8 @@ namespace MarcosPereira.Terrain {
 
             float accumulator = 0f;
 
-            foreach (EnvironmentObjectGroup group in environmentObjectGroups) {
-                accumulator += group.frequency / totalFrequency;
+            foreach (EnvironmentObjectGroup group in terrainGraph.environmentObjectGroups) {
+                accumulator += group.frequency / envObjTotalFrequency;
 
                 if (accumulator >= random2) {
                     prefabList = group.items;
@@ -150,12 +146,14 @@ namespace MarcosPereira.Terrain {
             int index = Mathf.CeilToInt(prefabList.Count * random3) - 1;
             GameObject prefab = prefabList[index];
 
+            int maxHeight = terrainGraph.terrainNode.maxHeight;
+
             if (Physics.Raycast(
-                origin: new Vector3(placeX, terrainNode.maxHeight * 2f, placeZ),
+                origin: new Vector3(placeX, maxHeight * 2f, placeZ),
                 direction: Vector3.down,
                 hitInfo: out RaycastHit hit,
                 maxDistance: Mathf.Infinity,
-                layerMask: groundLayerMask
+                layerMask: 1 << terrainGraph.groundLayer
             )) {
                 // Check parent transform due to possible LODs
                 if (hit.transform != chunk && hit.transform.parent != chunk) {
@@ -170,7 +168,7 @@ namespace MarcosPereira.Terrain {
 
                 // Respect maximum slope
                 float slope = Vector3.Angle(Vector3.up, hit.normal);
-                if (slope > terrainNode.vegetationMaxSlope) {
+                if (slope > terrainGraph.terrainNode.vegetationMaxSlope) {
                     return false;
                 }
 
@@ -202,6 +200,11 @@ namespace MarcosPereira.Terrain {
 
                 return true;
             }
+
+            UnityEngine.Debug.LogWarning(
+                "Terrain Graph: Raycast miss while placing environment " +
+                $"object on \"{chunk.name}\"."
+            );
 
             return false;
         }

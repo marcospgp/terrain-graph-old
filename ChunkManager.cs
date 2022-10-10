@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MarcosPereira.UnityUtilities;
 using UnityEngine;
 
 namespace MarcosPereira.Terrain {
@@ -79,17 +80,12 @@ namespace MarcosPereira.Terrain {
 
                     UnityEngine.Debug.Log($"Building chunk x{pos.x}_z{pos.z}");
 
-                    Task<GameObject> task = this.BuildChunk(pos.x, pos.z);
+                    var c = new CoroutineWithResult<GameObject>(this.BuildChunk(pos.x, pos.z));
 
-                    yield return new WaitUntil(() => task.IsCompleted);
+                    yield return c;
 
-                    UnityEngine.Debug.Log($"Built chunk {task.Result.name}");
+                    GameObject chunk = c.result;
 
-                    if (task.Exception != null) {
-                        throw task.Exception;
-                    }
-
-                    GameObject chunk = task.Result;
                     this.chunks.Add(pos, chunk);
                 }
             }
@@ -102,14 +98,18 @@ namespace MarcosPereira.Terrain {
             }
         }
 
-        private async Task<GameObject> BuildChunk(int x, int z) {
-            GameObject chunk = await MeshBuilder.BuildChunk(
+        private IEnumerator BuildChunk(int x, int z) {
+            Task<GameObject> t = MeshBuilder.BuildChunk(
                 x,
                 z,
                 TerrainGraph.CHUNK_WIDTH,
                 this.terrainGraph.terrainNode,
                 this.terrainGraph.terrainMaterial
             );
+
+            yield return t.AsCoroutine();
+
+            GameObject chunk = t.Result;
 
             chunk.layer = this.terrainGraph.groundLayer;
 
@@ -118,29 +118,31 @@ namespace MarcosPereira.Terrain {
             // moved during gameplay, which is not the case.
             chunk.transform.SetParent(this.terrainGraph.transform);
 
-            int worldX = x * TerrainGraph.CHUNK_WIDTH;
-            int worldZ = z * TerrainGraph.CHUNK_WIDTH;
+            (int, int) worldPos = (
+                x * TerrainGraph.CHUNK_WIDTH,
+                z * TerrainGraph.CHUNK_WIDTH
+            );
 
-            float[,] environmentObjectDensity =
-                await this.terrainGraph.terrainNode.GetEnvironmentObjectDensity(
-                    worldX,
-                    worldZ,
+            Task<float[,]> t2 =
+                this.terrainGraph.terrainNode.GetEnvironmentObjectDensity(
+                    worldPos,
                     TerrainGraph.CHUNK_WIDTH
                 );
 
-            _ = this.terrainGraph.StartCoroutine(Environment.PlaceObjects(
-                worldX,
-                worldZ,
-                TerrainGraph.CHUNK_WIDTH,
-                chunk.transform,
-                this.terrainGraph.terrainNode,
-                this.terrainGraph.environmentObjectGroups,
-                environmentObjectDensity,
-                this.terrainGraph.groundLayer,
-                this.terrainGraph.useStaticBatching
-            ));
+            yield return t2.AsCoroutine();
 
-            return chunk;
+            float[,] environmentObjectDensity = t2.Result;
+
+            yield return Environment.PlaceObjects(
+                worldPos,
+                chunk.transform,
+                environmentObjectDensity,
+                this.terrainGraph
+            );
+
+            // Last value can be accessed as the result, by using custom
+            // Coroutine<T>.
+            yield return chunk;
         }
     }
 }

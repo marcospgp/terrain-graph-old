@@ -67,10 +67,16 @@ namespace MarcosPereira.Terrain {
         /// <summary>
         /// Get density map for environment objects (grass, trees, etc.).
         /// Density is in range [0, 1].
-        /// X and Z parameters must be in world space (not chunk space).
         /// </summary>
-        public async Task<float[,]> GetEnvironmentObjectDensity(int x, int z, int width) {
-            List<Vector3Int> points = TerrainNode.GetPoints(x, z, width);
+        public async Task<float[,]> GetEnvironmentObjectDensity(
+            (int x, int z) worldPos,
+            int width
+        ) {
+            List<Vector3Int> points = TerrainNode.GetPoints(
+                worldPos.x,
+                worldPos.z,
+                width
+            );
 
             List<float> values = await TerrainNode.GetUpstreamValues(
                 this.vegetationDensityInputPort,
