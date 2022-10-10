@@ -172,31 +172,13 @@ namespace MarcosPereira.Terrain {
                     return false;
                 }
 
-                // Align prefab with ground
-                Quaternion rotation = Quaternion.identity;
-                if (alignWithGround) {
-                    rotation = Quaternion.FromToRotation(Vector3.up, hit.normal);
-                }
-
-                GameObject obj = Object.Instantiate(
+                Environment.Instantiate(
                     prefab,
-                    hit.point,
-                    rotation,
-                    parent: chunk
+                    hit,
+                    parent: chunk,
+                    scaleVariation,
+                    alignWithGround
                 );
-
-                // Random rotation around y axis
-                float yAngle = Hash.Get01(placeX, placeZ, "yAngle") * 360f;
-                obj.transform.Rotate(Vector3.up, yAngle, Space.Self);
-
-                // Scale variation
-
-                float maxScale = 1f + Mathf.Max(0f, scaleVariation);
-                float minScale = 1f / Mathf.Max(0f, maxScale);
-
-                float scale01 = Hash.Get01(placeX, placeZ, "scale variation");
-
-                obj.transform.localScale *= Mathf.Lerp(minScale, maxScale, scale01);
 
                 return true;
             }
@@ -207,6 +189,40 @@ namespace MarcosPereira.Terrain {
             );
 
             return false;
+        }
+
+        private static void Instantiate(
+            GameObject prefab,
+            RaycastHit hit,
+            Transform parent,
+            float scaleVariation,
+            bool alignWithGround
+        ) {
+            // Align with ground
+            Quaternion rotation = Quaternion.identity;
+            if (alignWithGround) {
+                rotation = Quaternion.FromToRotation(Vector3.up, hit.normal);
+            }
+
+            GameObject obj = Object.Instantiate(
+                prefab,
+                hit.point,
+                rotation,
+                parent
+            );
+
+            // Random rotation around y axis
+            float yAngle = Hash.Get01(hit.point.x, hit.point.z, "yAngle") * 360f;
+            obj.transform.Rotate(Vector3.up, yAngle, Space.Self);
+
+            // Scale variation
+
+            float maxScale = 1f + Mathf.Max(0f, scaleVariation);
+            float minScale = 1f / Mathf.Max(0f, maxScale);
+
+            float scale01 = Hash.Get01(hit.point.x, hit.point.z, "scale variation");
+
+            obj.transform.localScale *= Mathf.Lerp(minScale, maxScale, scale01);
         }
     }
 }
