@@ -47,7 +47,8 @@ namespace MarcosPereira.Terrain {
             "Removing SRP Batcher compatibility makes it possible to use GPU " +
             "instancing with environment objects (by enabling it in the " +
             "object's material).\n" +
-            "If the SRP Batcher is not disabled, Unity will prioritize it.\n" +
+            "If the SRP Batcher is not disabled, Unity will prioritize it " +
+            "above GPU instancing.\n" +
             "SRP Batcher compatibility is removed by adding a MaterialPropertyBlock " +
             "to the Renderer."
         )]
