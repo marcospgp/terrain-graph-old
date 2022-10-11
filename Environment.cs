@@ -176,8 +176,9 @@ namespace MarcosPereira.Terrain {
                     prefab,
                     hit,
                     parent: chunk,
+                    alignWithGround,
                     scaleVariation,
-                    alignWithGround
+                    terrainGraph.disableSRPBatching
                 );
 
                 return true;
@@ -195,8 +196,9 @@ namespace MarcosPereira.Terrain {
             GameObject prefab,
             RaycastHit hit,
             Transform parent,
+            bool alignWithGround,
             float scaleVariation,
-            bool alignWithGround
+            bool disableSRPBatching
         ) {
             // Align with ground
             Quaternion rotation = Quaternion.identity;
@@ -223,6 +225,14 @@ namespace MarcosPereira.Terrain {
             float scale01 = Hash.Get01(hit.point.x, hit.point.z, "scale variation");
 
             obj.transform.localScale *= Mathf.Lerp(minScale, maxScale, scale01);
+
+            if (disableSRPBatching) {
+                var block = new MaterialPropertyBlock();
+                block.SetInteger("Manually remove SRP Batcher compatibility.", 123);
+                foreach (var r in obj.GetComponentsInChildren<Renderer>(includeInactive: true)) {
+                    r.SetPropertyBlock(block);
+                }
+            }
         }
     }
 }
