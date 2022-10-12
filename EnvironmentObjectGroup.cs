@@ -7,6 +7,20 @@ namespace MarcosPereira.Terrain {
         public string label = "Unnamed group";
 
         [Tooltip(
+            "Whether these objects will be placed on the terrain.\n" +
+            "Disabled groups still have " +
+            "their frequency taken into account, so that disabling a group " +
+            "does not affect how many objects of other groups are placed."
+        )]
+        public bool enabled = true;
+
+        [Header("Objects")]
+
+        public List<GameObject> items;
+
+        [Header("Settings")]
+
+        [Tooltip(
             "How often objects in this group will appear on the terrain, " +
             "relative to other groups."
         )]
@@ -24,7 +38,5 @@ namespace MarcosPereira.Terrain {
             "0 means the object will always be visible."
         )]
         public float viewDistance = 500f;
-
-        public List<GameObject> items;
     }
 }

@@ -24,9 +24,21 @@ namespace MarcosPereira.Terrain {
         }
 
         public void UpdateCenterChunk((int, int) newCenterChunk) {
+            this.centerChunk = newCenterChunk;
+
             this.updateCenterChunkCoroutine = this.terrainGraph.StartCoroutine(
-                this.UpdateCenterChunkCoroutine(newCenterChunk)
+                this.UpdateCenterChunkCoroutine()
             );
+        }
+
+        public void Reset() {
+            foreach (GameObject chunk in this.chunks.Values) {
+                UnityEngine.Object.Destroy(chunk);
+            }
+
+            this.chunks.Clear();
+
+            this.UpdateCenterChunk(this.centerChunk);
         }
 
         // Enumerates int coordinates for a spiral.
@@ -63,14 +75,14 @@ namespace MarcosPereira.Terrain {
             }
         }
 
-        private IEnumerator UpdateCenterChunkCoroutine((int, int) newCenterChunk) {
+        private IEnumerator UpdateCenterChunkCoroutine() {
             // Wait for previous coroutine to end instead of forcing it to stop.
             // Chunks in the midst of being built would finish being built,
             // leading to duplicate chunks.
             yield return this.updateCenterChunkCoroutine;
 
             IEnumerable<(int, int)> newActiveChunks =
-                Spiral(newCenterChunk, this.terrainGraph.viewDistance + 1);
+                Spiral(this.centerChunk, this.terrainGraph.viewDistance + 1);
 
             foreach ((int x, int z) pos in newActiveChunks) {
                 if (this.chunks.TryGetValue(pos, out GameObject obj)) {

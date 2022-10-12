@@ -63,25 +63,12 @@ namespace MarcosPereira.Terrain {
 
 #if UNITY_EDITOR
         public void Awake() {
-            // TODO: revisit
             // When terrain graph asset is saved, rebuild terrain.
-            // AssetSavedListener.Listen(this.terrainGraphAsset, async () => {
-            //     if (Application.isPlaying) {
-            //         this.StopAllCoroutines();
-
-            //         try {
-            //             await this.buildTask;
-            //         } catch (OperationCanceledException) {
-            //         }
-
-            //         foreach (GameObject chunk in this.chunkManager.chunks.Values) {
-            //             Destroy(chunk);
-            //         }
-
-            //         this.chunkManager.chunks.Clear();
-            //         this.Start();
-            //     }
-            // });
+            AssetSavedListener.Listen(this.terrainGraphAsset, () => {
+                if (Application.isPlaying) {
+                    this.chunkManager.Reset();
+                }
+            });
         }
 #endif
 

@@ -53,7 +53,7 @@ namespace MarcosPereira.Terrain.Editor {
             if (!string.IsNullOrEmpty(this.displayName)) {
                 displayName = this.displayName;
             } else {
-                // Convert field name to Title Case
+                // Convert field name from camelCase to Title Case
                 displayName =
                     char.ToUpper(this.PartName[0], CultureInfo.InvariantCulture) +
                     Regex.Replace(this.PartName, "[A-Z]", " $0").Substring(1);

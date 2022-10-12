@@ -48,7 +48,15 @@ namespace MarcosPereira.Terrain {
             // Calculate total frequency
             float envObjTotalFrequency = 0f;
             foreach (EnvironmentObjectGroup group in terrainGraph.environmentObjectGroups) {
+                // We ignore group.enabled on purpose. Disabled groups still have their
+                // frequency taken into account, so that disabling a group does not affect
+                // how many objects of other groups are placed on the terrain.
                 envObjTotalFrequency += group.frequency;
+            }
+
+            // No groups enabled or all frequencies set to 0
+            if (envObjTotalFrequency == 0f) {
+                yield break;
             }
 
             bool PlaceObject((float, float) offset) =>
@@ -119,32 +127,34 @@ namespace MarcosPereira.Terrain {
                 return false;
             }
 
-            // Determine which object to place
             float random2 = Hash.Get01(placeX, placeZ, "which environment object group");
 
-            List<GameObject> prefabList = null;
-            bool alignWithGround = false;
-
+            EnvironmentObjectGroup group = null;
             float accumulator = 0f;
+            int groupCount = terrainGraph.environmentObjectGroups.Count;
 
-            foreach (EnvironmentObjectGroup group in terrainGraph.environmentObjectGroups) {
-                accumulator += group.frequency / envObjTotalFrequency;
+            for (int i = 0; i < groupCount; i++) {
+                accumulator +=
+                    terrainGraph.environmentObjectGroups[i].frequency / envObjTotalFrequency;
 
-                if (accumulator >= random2) {
-                    prefabList = group.items;
-                    alignWithGround = group.alignWithGround;
+                // Avoid floating point inaccuracies by always picking last
+                // group if it gets to it
+                bool isLastGroup = i == groupCount - 1;
+
+                if (accumulator >= random2 || isLastGroup) {
+                    group = terrainGraph.environmentObjectGroups[i];
                     break;
                 }
             }
 
-            if (prefabList.Count == 0) {
+            if (!group.enabled || group.items.Count == 0) {
                 return false;
             }
 
             // Determine which prefab to place from given list.
             float random3 = Hash.Get01Exclusive(placeX, placeZ, "which environment object");
-            int index = Mathf.CeilToInt(prefabList.Count * random3) - 1;
-            GameObject prefab = prefabList[index];
+            int index = Mathf.CeilToInt(group.items.Count * random3) - 1;
+            GameObject prefab = group.items[index];
 
             int maxHeight = terrainGraph.terrainNode.maxHeight;
 
@@ -176,7 +186,7 @@ namespace MarcosPereira.Terrain {
                     prefab,
                     hit,
                     parent: chunk,
-                    alignWithGround,
+                    group.alignWithGround,
                     scaleVariation,
                     terrainGraph.disableSRPBatching
                 );
