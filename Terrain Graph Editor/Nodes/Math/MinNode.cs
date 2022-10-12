@@ -32,7 +32,7 @@ namespace MarcosPereira.Terrain {
             var results = new List<float>(inputs[0].Count);
 
             for (int i = 0; i < inputs[0].Count; i++) {
-                results.Add(Mathf.Max(inputs[0][i], inputs[1][i]));
+                results.Add(Mathf.Min(inputs[0][i], inputs[1][i]));
             }
 
             return Task.FromResult(results);
