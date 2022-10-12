@@ -17,6 +17,9 @@ namespace MarcosPereira.Terrain {
 
         private readonly TerrainGraph terrainGraph;
 
+        // Do not stop this coroutine, only wait for it to finish.
+        // Otherwise, it will cause chunks to be generated but not added to
+        // this.chunks dictionary.
         private Coroutine updateCenterChunkCoroutine;
 
         public ChunkManager(TerrainGraph terrainGraph) {
@@ -90,13 +93,17 @@ namespace MarcosPereira.Terrain {
                 } else {
                     // Build newly active chunks that weren't built before
 
-                    UnityEngine.Debug.Log($"Building chunk x{pos.x}_z{pos.z}");
+                    // UnityEngine.Debug.Log($"Building chunk x{pos.x}_z{pos.z}");
 
                     var c = new CoroutineWithResult<GameObject>(this.BuildChunk(pos.x, pos.z));
 
                     yield return c;
 
                     GameObject chunk = c.result;
+
+                    if (this.terrainGraph.placeEnvironmentObjects) {
+                        yield return this.PlaceEnvironmentObjects((pos.x, pos.z), chunk.transform);
+                    }
 
                     this.chunks.Add(pos, chunk);
                 }
@@ -130,9 +137,15 @@ namespace MarcosPereira.Terrain {
             // moved during gameplay, which is not the case.
             chunk.transform.SetParent(this.terrainGraph.transform);
 
+            // Return chunk from coroutine. This can be retrieved using the
+            // CoroutineWithResult<T> class.
+            yield return chunk;
+        }
+
+        private IEnumerator PlaceEnvironmentObjects((int x, int z) chunkPos, Transform chunk) {
             (int, int) worldPos = (
-                x * TerrainGraph.CHUNK_WIDTH,
-                z * TerrainGraph.CHUNK_WIDTH
+                chunkPos.x * TerrainGraph.CHUNK_WIDTH,
+                chunkPos.z * TerrainGraph.CHUNK_WIDTH
             );
 
             Task<float[,]> t2 =
@@ -151,10 +164,6 @@ namespace MarcosPereira.Terrain {
                 environmentObjectDensity,
                 this.terrainGraph
             );
-
-            // Last value can be accessed as the result, by using custom
-            // Coroutine<T>.
-            yield return chunk;
         }
     }
 }
