@@ -35,6 +35,12 @@ namespace MarcosPereira.Terrain {
 
         [Header("Environment")]
 
+        public bool placeEnvironmentObjects = true;
+
+        public List<EnvironmentObjectGroup> environmentObjectGroups;
+
+        [Header("Advanced")]
+
         [Tooltip(
             "Static batching may improve rendering speed, but at the cost of " +
             "drastically increased memory usage. Enabling this requires all " +
@@ -53,8 +59,6 @@ namespace MarcosPereira.Terrain {
             "to the Renderer."
         )]
         public bool disableSRPBatching = false;
-
-        public List<EnvironmentObjectGroup> environmentObjectGroups;
 
         [HideInInspector]
         public TerrainNode terrainNode;
