@@ -38,5 +38,11 @@ namespace MarcosPereira.Terrain {
             "0 means the object will always be visible."
         )]
         public float viewDistance = 500f;
+
+        [Tooltip(
+            "Minimum Y coordinate at which these objects will be placed. Useful for things like " +
+            "preventing objects from being placed underwater."
+        )]
+        public float minimumHeight = 0f;
     }
 }

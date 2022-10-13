@@ -182,6 +182,11 @@ namespace MarcosPereira.Terrain {
                     return false;
                 }
 
+                // Respect minimum height
+                if (hit.point.y < group.minimumHeight) {
+                    return false;
+                }
+
                 Environment.Instantiate(
                     prefab,
                     hit,
