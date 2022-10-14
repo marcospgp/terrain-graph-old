@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using MarcosPereira.Terrain.ChunkManagerNS;
 using UnityEngine;
 
 namespace MarcosPereira.Terrain {
@@ -20,6 +21,9 @@ namespace MarcosPereira.Terrain {
         public ChunkManager(TerrainGraph terrainGraph) {
             this.terrainGraph = terrainGraph;
         }
+
+        public static void WarnUnreadableMeshes(List<EnvironmentObjectGroup> x) =>
+            Environment.WarnUnreadableMeshes(x);
 
         public void UpdateCenterChunk((int, int) newCenterChunk) {
             this.centerChunk = newCenterChunk;

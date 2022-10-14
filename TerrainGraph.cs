@@ -88,7 +88,7 @@ namespace MarcosPereira.Terrain {
             // Warn user of any non read/write enabled meshes, which will
             // prevent them from being static batched
             if (this.useStaticBatching) {
-                Environment.WarnUnreadableMeshes(this.environmentObjectGroups);
+                ChunkManager.WarnUnreadableMeshes(this.environmentObjectGroups);
             }
 
             this.terrainNode =

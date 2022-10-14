@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using MarcosPereira.UnityUtilities;
 using UnityEngine;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.ChunkManagerNS {
     public static class ChunkBuilder {
         /// <param name="chunk">
         /// An empty gameobject to work with. An out parameter would be cleaner,
