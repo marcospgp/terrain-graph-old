@@ -91,8 +91,8 @@ namespace MarcosPereira.Terrain {
 
             if (terrainGraph.useStaticBatching) {
                 // Combine chunk and vegetation into a static batch.
-                // This was experimentally found to perform better than
-                // SRP batching or GPU instancing.
+                // This seemed to increase FPS a little compared to SRP batching
+                // and GPU instancing, but at the cost of too much memory.
                 StaticBatchingUtility.Combine(chunk.gameObject);
             }
         }

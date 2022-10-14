@@ -3,35 +3,7 @@ using UnityEngine;
 
 namespace MarcosPereira.Terrain {
     public static class MeshBuilder {
-        public static async Task<GameObject> BuildChunk(
-            int x,
-            int z,
-            int chunkWidth,
-            TerrainNode node,
-            Material mat
-        ) {
-            int worldX = x * chunkWidth;
-            int worldZ = z * chunkWidth;
-
-            string name = $"chunk_x{x}_z{z}";
-
-            Mesh mesh = await MeshBuilder.BuildMesh(worldX, worldZ, chunkWidth, node, name);
-
-            var chunk = new GameObject(name);
-            chunk.transform.position = new Vector3(worldX, 0f, worldZ);
-
-            MeshFilter meshFilter = chunk.AddComponent<MeshFilter>();
-            meshFilter.mesh = mesh;
-
-            MeshRenderer meshRenderer = chunk.AddComponent<MeshRenderer>();
-            meshRenderer.material = mat;
-
-            _ = chunk.AddComponent<MeshCollider>();
-
-            return chunk;
-        }
-
-        private static async Task<Mesh> BuildMesh(
+        public static async Task<Mesh> BuildChunkMesh(
             int worldX,
             int worldZ,
             int chunkWidth,

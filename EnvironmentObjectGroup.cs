@@ -33,11 +33,11 @@ namespace MarcosPereira.Terrain {
         )]
         public bool alignWithGround = false;
 
-        [Tooltip(
-            "Maximum distance at which objects in this group are visible. " +
-            "0 means the object will always be visible."
-        )]
-        public float viewDistance = 500f;
+        // [Tooltip(
+        //     "Maximum distance at which objects in this group are visible. " +
+        //     "0 means the object will always be visible."
+        // )]
+        // public float viewDistance = 500f;
 
         [Tooltip(
             "Minimum Y coordinate at which these objects will be placed. Useful for things like " +

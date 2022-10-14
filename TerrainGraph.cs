@@ -123,21 +123,29 @@ namespace MarcosPereira.Terrain {
 
                 float maxDistance = Mathf.Sqrt(CHUNK_WIDTH * CHUNK_WIDTH * 2f);
 
-                (float x, float z) center = (
-                    this.chunkManager.centerChunk.x + (CHUNK_WIDTH / 2f),
-                    this.chunkManager.centerChunk.z + (CHUNK_WIDTH / 2f)
+                // Center of center chunk, in world space
+                (float x, float z) worldCenter = (
+                    (this.chunkManager.centerChunk.x * CHUNK_WIDTH) + (CHUNK_WIDTH / 2f),
+                    (this.chunkManager.centerChunk.z * CHUNK_WIDTH) + (CHUNK_WIDTH / 2f)
                 );
 
                 float distance = Mathf.Sqrt(
-                    Mathf.Pow(center.x - this.player.position.x, 2f) +
-                    Mathf.Pow(center.z - this.player.position.z, 2f)
+                    Mathf.Pow(worldCenter.x - this.player.position.x, 2f) +
+                    Mathf.Pow(worldCenter.z - this.player.position.z, 2f)
                 );
+
+                // UnityEngine.Debug.Log($"distance: {distance:0.00} maxDistance: {maxDistance:0.00}");
 
                 if (distance > maxDistance) {
                     (int, int) newCenterChunk = (
                         Mathf.FloorToInt(this.player.position.x / CHUNK_WIDTH),
                         Mathf.FloorToInt(this.player.position.z / CHUNK_WIDTH)
                     );
+
+                    // UnityEngine.Debug.Log(
+                    //     "Max distance reached. Updating center chunk...\n" +
+                    //     $"old: {this.chunkManager.centerChunk} new: {newCenterChunk}"
+                    // );
 
                     this.chunkManager.UpdateCenterChunk(newCenterChunk);
                 }

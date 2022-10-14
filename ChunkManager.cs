@@ -1,7 +1,5 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using MarcosPereira.UnityUtilities;
 using UnityEngine;
@@ -17,9 +15,6 @@ namespace MarcosPereira.Terrain {
 
         private readonly TerrainGraph terrainGraph;
 
-        // Do not stop this coroutine, only wait for it to finish.
-        // Otherwise, it will cause chunks to be generated but not added to
-        // this.chunks dictionary.
         private Coroutine updateCenterChunkCoroutine;
 
         public ChunkManager(TerrainGraph terrainGraph) {
@@ -35,6 +30,11 @@ namespace MarcosPereira.Terrain {
         }
 
         public void Reset() {
+            // Stop building chunks if any are being built.
+            // We don't mind partially built chunks because we are destroying
+            // all of them.
+            this.terrainGraph.StopCoroutine(this.updateCenterChunkCoroutine);
+
             foreach (GameObject chunk in this.chunks.Values) {
                 UnityEngine.Object.Destroy(chunk);
             }
@@ -79,10 +79,11 @@ namespace MarcosPereira.Terrain {
         }
 
         private IEnumerator UpdateCenterChunkCoroutine() {
-            // Wait for previous coroutine to end instead of forcing it to stop.
-            // Chunks in the midst of being built would finish being built,
-            // leading to duplicate chunks.
-            yield return this.updateCenterChunkCoroutine;
+            // Wait for previous coroutine to end if it is underway, so that
+            // we do not end up with partially-built chunks.
+            if (this.updateCenterChunkCoroutine != null) {
+                yield return this.updateCenterChunkCoroutine;
+            }
 
             IEnumerable<(int, int)> newActiveChunks =
                 Spiral(this.centerChunk, this.terrainGraph.viewDistance + 1);
@@ -95,41 +96,49 @@ namespace MarcosPereira.Terrain {
 
                     // UnityEngine.Debug.Log($"Building chunk x{pos.x}_z{pos.z}");
 
-                    var c = new CoroutineWithResult<GameObject>(this.BuildChunk(pos.x, pos.z));
-
-                    yield return c;
-
-                    GameObject chunk = c.result;
+                    yield return this.BuildChunk((pos.x, pos.z));
 
                     if (this.terrainGraph.placeEnvironmentObjects) {
-                        yield return this.PlaceEnvironmentObjects((pos.x, pos.z), chunk.transform);
+                        yield return this.PlaceEnvironmentObjects((pos.x, pos.z));
                     }
-
-                    this.chunks.Add(pos, chunk);
                 }
             }
 
             // Disable non active chunks.
             foreach (var x in this.chunks) {
-                if (!newActiveChunks.Contains(x.Key)) {
+                bool contains = false;
+
+                foreach ((int, int) pos in newActiveChunks) {
+                    if (x.Key == pos) {
+                        contains = true;
+                        break;
+                    }
+                }
+
+                if (!contains) {
                     x.Value.SetActive(false);
                 }
+
+                // Wait a frame to avoid slowing game down
+                yield return null;
             }
         }
 
-        private IEnumerator BuildChunk(int x, int z) {
-            Task<GameObject> t = MeshBuilder.BuildChunk(
-                x,
-                z,
-                TerrainGraph.CHUNK_WIDTH,
-                this.terrainGraph.terrainNode,
-                this.terrainGraph.terrainMaterial
-            );
+        private IEnumerator BuildChunk((int x, int z) pos) {
+            var chunk = new GameObject();
 
-            yield return t.AsCoroutine();
+            // Chunk must be added to chunks dictionary before the next yield,
+            // so that it is not unaccounted for in case this coroutine gets
+            // interrupted.
+            this.chunks.Add(pos, chunk);
 
-            GameObject chunk = t.Result;
+            string name = $"chunk_x{pos.x}_z{pos.z}";
 
+            int worldX = pos.x * TerrainGraph.CHUNK_WIDTH;
+            int worldZ = pos.z * TerrainGraph.CHUNK_WIDTH;
+
+            chunk.name = name;
+            chunk.transform.position = new Vector3(worldX, 0f, worldZ);
             chunk.layer = this.terrainGraph.groundLayer;
 
             // Avoid cluttering the hierarchy root.
@@ -137,12 +146,28 @@ namespace MarcosPereira.Terrain {
             // moved during gameplay, which is not the case.
             chunk.transform.SetParent(this.terrainGraph.transform);
 
-            // Return chunk from coroutine. This can be retrieved using the
-            // CoroutineWithResult<T> class.
-            yield return chunk;
+            Task<Mesh> t = MeshBuilder.BuildChunkMesh(
+                worldX,
+                worldZ,
+                TerrainGraph.CHUNK_WIDTH,
+                this.terrainGraph.terrainNode,
+                name
+            );
+
+            yield return t.AsCoroutine();
+
+            Mesh mesh = t.Result;
+
+            MeshFilter meshFilter = chunk.AddComponent<MeshFilter>();
+            meshFilter.mesh = mesh;
+
+            MeshRenderer meshRenderer = chunk.AddComponent<MeshRenderer>();
+            meshRenderer.material = this.terrainGraph.terrainMaterial;
+
+            _ = chunk.AddComponent<MeshCollider>();
         }
 
-        private IEnumerator PlaceEnvironmentObjects((int x, int z) chunkPos, Transform chunk) {
+        private IEnumerator PlaceEnvironmentObjects((int x, int z) chunkPos) {
             (int, int) worldPos = (
                 chunkPos.x * TerrainGraph.CHUNK_WIDTH,
                 chunkPos.z * TerrainGraph.CHUNK_WIDTH
@@ -158,9 +183,11 @@ namespace MarcosPereira.Terrain {
 
             float[,] environmentObjectDensity = t2.Result;
 
+            Transform chunk = this.chunks[chunkPos].transform;
+
             yield return Environment.PlaceObjects(
                 worldPos,
-                chunk.transform,
+                chunk,
                 environmentObjectDensity,
                 this.terrainGraph
             );
