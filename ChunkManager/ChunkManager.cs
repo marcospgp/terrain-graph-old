@@ -16,7 +16,8 @@ namespace MarcosPereira.Terrain {
 
         private Coroutine updateCenterChunkCoroutine;
 
-        private GameObject lastBuiltChunk;
+        // Nullable to prevent misuse.
+        private (int, int)? lastBuiltChunk;
 
         public ChunkManager(TerrainGraph terrainGraph) {
             this.terrainGraph = terrainGraph;
@@ -27,6 +28,16 @@ namespace MarcosPereira.Terrain {
 
         public void UpdateCenterChunk((int, int) newCenterChunk) {
             this.centerChunk = newCenterChunk;
+
+            if (this.updateCenterChunkCoroutine != null) {
+                this.terrainGraph.StopCoroutine(this.updateCenterChunkCoroutine);
+
+                // Last chunk may be partially built since we interrupted coroutine,
+                // so destroy it
+                Object.Destroy(this.chunks[this.lastBuiltChunk.Value]);
+                _ = this.chunks.Remove(this.lastBuiltChunk.Value);
+                this.lastBuiltChunk = null;
+            }
 
             this.updateCenterChunkCoroutine = this.terrainGraph.StartCoroutine(
                 this.UpdateCenterChunkCoroutine()
@@ -100,13 +111,17 @@ namespace MarcosPereira.Terrain {
 
                     // UnityEngine.Debug.Log($"Building chunk x{pos.x}_z{pos.z}");
 
+                    // Build gameobject right away so we can keep track of it,
+                    // even if coroutine gets interrupted.
                     var chunk = new GameObject();
 
-                    this.lastBuiltChunk = chunk;
+                    this.lastBuiltChunk = pos;
+
+                    this.chunks.Add(pos, chunk);
 
                     // Avoid cluttering the hierarchy root.
-                    // I believe this would only be costly in performance if the chunks
-                    // moved during gameplay, which is not the case.
+                    // I believe this would only be costly in performance if the
+                    // chunks moved during gameplay, which is not the case.
                     chunk.transform.SetParent(this.terrainGraph.transform);
 
                     yield return ChunkBuilder.BuildChunk(
