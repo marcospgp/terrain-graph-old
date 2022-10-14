@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using MarcosPereira.UnityUtilities;
 using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEngine;
 using UnityEngine.GraphToolsFoundation.Overdrive;
@@ -29,7 +30,7 @@ namespace MarcosPereira.Terrain {
             var results = new List<float>(inputs[0].Count);
 
             for (int i = 0; i < inputs[0].Count; i++) {
-                results.Add(PerlinNoise.SmootherStep(inputs[0][i]));
+                results.Add(SmootherStep.Get(inputs[0][i]));
             }
 
             return Task.FromResult(results);
