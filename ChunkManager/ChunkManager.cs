@@ -1,7 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using MarcosPereira.UnityUtilities;
 using UnityEngine;
 
 namespace MarcosPereira.Terrain {
@@ -16,6 +14,8 @@ namespace MarcosPereira.Terrain {
         private readonly TerrainGraph terrainGraph;
 
         private Coroutine updateCenterChunkCoroutine;
+
+        private GameObject lastBuiltChunk;
 
         public ChunkManager(TerrainGraph terrainGraph) {
             this.terrainGraph = terrainGraph;
@@ -96,101 +96,41 @@ namespace MarcosPereira.Terrain {
 
                     // UnityEngine.Debug.Log($"Building chunk x{pos.x}_z{pos.z}");
 
-                    yield return this.BuildChunk((pos.x, pos.z));
+                    var chunk = new GameObject();
 
-                    if (this.terrainGraph.placeEnvironmentObjects) {
-                        yield return this.PlaceEnvironmentObjects((pos.x, pos.z));
-                    }
+                    this.lastBuiltChunk = chunk;
+
+                    // Avoid cluttering the hierarchy root.
+                    // I believe this would only be costly in performance if the chunks
+                    // moved during gameplay, which is not the case.
+                    chunk.transform.SetParent(this.terrainGraph.transform);
+
+                    yield return ChunkBuilder.BuildChunk(
+                        (pos.x, pos.z),
+                        chunk,
+                        this.terrainGraph
+                    );
                 }
             }
 
             // Disable non active chunks.
             foreach (var x in this.chunks) {
-                bool contains = false;
+                bool active = false;
 
                 foreach ((int, int) pos in newActiveChunks) {
                     if (x.Key == pos) {
-                        contains = true;
+                        active = true;
                         break;
                     }
                 }
 
-                if (!contains) {
+                if (!active) {
                     x.Value.SetActive(false);
                 }
 
                 // Wait a frame to avoid slowing game down
                 yield return null;
             }
-        }
-
-        private IEnumerator BuildChunk((int x, int z) pos) {
-            var chunk = new GameObject();
-
-            // Chunk must be added to chunks dictionary before the next yield,
-            // so that it is not unaccounted for in case this coroutine gets
-            // interrupted.
-            this.chunks.Add(pos, chunk);
-
-            string name = $"chunk_x{pos.x}_z{pos.z}";
-
-            int worldX = pos.x * TerrainGraph.CHUNK_WIDTH;
-            int worldZ = pos.z * TerrainGraph.CHUNK_WIDTH;
-
-            chunk.name = name;
-            chunk.transform.position = new Vector3(worldX, 0f, worldZ);
-            chunk.layer = this.terrainGraph.groundLayer;
-
-            // Avoid cluttering the hierarchy root.
-            // I believe this would only be costly in performance if the chunks
-            // moved during gameplay, which is not the case.
-            chunk.transform.SetParent(this.terrainGraph.transform);
-
-            Task<Mesh> t = MeshBuilder.BuildChunkMesh(
-                worldX,
-                worldZ,
-                TerrainGraph.CHUNK_WIDTH,
-                this.terrainGraph.terrainNode,
-                name
-            );
-
-            yield return t.AsCoroutine();
-
-            Mesh mesh = t.Result;
-
-            MeshFilter meshFilter = chunk.AddComponent<MeshFilter>();
-            meshFilter.mesh = mesh;
-
-            MeshRenderer meshRenderer = chunk.AddComponent<MeshRenderer>();
-            meshRenderer.material = this.terrainGraph.terrainMaterial;
-
-            _ = chunk.AddComponent<MeshCollider>();
-        }
-
-        private IEnumerator PlaceEnvironmentObjects((int x, int z) chunkPos) {
-            (int, int) worldPos = (
-                chunkPos.x * TerrainGraph.CHUNK_WIDTH,
-                chunkPos.z * TerrainGraph.CHUNK_WIDTH
-            );
-
-            Task<float[,]> t2 =
-                this.terrainGraph.terrainNode.GetEnvironmentObjectDensity(
-                    worldPos,
-                    TerrainGraph.CHUNK_WIDTH
-                );
-
-            yield return t2.AsCoroutine();
-
-            float[,] environmentObjectDensity = t2.Result;
-
-            Transform chunk = this.chunks[chunkPos].transform;
-
-            yield return Environment.PlaceObjects(
-                worldPos,
-                chunk,
-                environmentObjectDensity,
-                this.terrainGraph
-            );
         }
     }
 }
