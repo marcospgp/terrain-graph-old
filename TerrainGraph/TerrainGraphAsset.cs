@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using MarcosPereira.Terrain.Graph;
 using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 using UnityEngine;
@@ -12,6 +13,7 @@ using UnityEditor.Callbacks;
 
 #endif
 
+// This class is in a more accessible namespace because it is commonly used.
 namespace MarcosPereira.Terrain {
     [Serializable]
     public class TerrainGraphAsset : GraphAssetModel {

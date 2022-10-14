@@ -1,7 +1,7 @@
 using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 
-namespace MarcosPereira.Terrain.Editor {
+namespace MarcosPereira.Terrain.Graph.Editor {
     public abstract class BaseUIPart : BaseModelUIPart {
         protected readonly NodeModel nodeModel;
 

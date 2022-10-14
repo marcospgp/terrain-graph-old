@@ -2,12 +2,12 @@
 
 using System.Linq;
 using System.Threading.Tasks;
-using MarcosPereira.Terrain.Editor;
+using MarcosPereira.Terrain.Graph.Editor;
 using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 using UnityEngine.UIElements;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.Graph {
     public abstract class BaseNodeUI : CollapsibleInOutNode {
         private TextureUIPart texturePart;
 

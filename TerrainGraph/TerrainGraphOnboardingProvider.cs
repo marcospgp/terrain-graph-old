@@ -4,7 +4,7 @@ using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 using UnityEngine.UIElements;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.Graph {
     public class TerrainGraphOnboardingProvider : OnboardingProvider {
         public override VisualElement CreateOnboardingElements(
             CommandDispatcher commandDispatcher

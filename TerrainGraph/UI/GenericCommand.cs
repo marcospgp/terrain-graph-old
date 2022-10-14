@@ -3,7 +3,7 @@ using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 using UnityEngine.GraphToolsFoundation.CommandStateObserver;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.Graph {
     // Graph Tools Foundation's command classes must be registered and cannot have "open constructed"
     // types, which means GenericCommand must be declared once for each specific type of TValue
     // before it is dispatched.

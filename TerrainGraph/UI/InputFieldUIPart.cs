@@ -6,7 +6,7 @@ using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
-namespace MarcosPereira.Terrain.Editor {
+namespace MarcosPereira.Terrain.Graph.Editor {
     public class InputFieldUIPart<TField> : BaseUIPart {
         private readonly string displayName;
         private readonly string tooltip;

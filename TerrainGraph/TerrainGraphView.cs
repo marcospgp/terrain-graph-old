@@ -5,7 +5,7 @@ using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.Graph {
     // This class was created in order to hide things from the contextual menu
     // (the menu that appears when one right-clicks on the canvas).
     public class TerrainGraphView : GraphView {

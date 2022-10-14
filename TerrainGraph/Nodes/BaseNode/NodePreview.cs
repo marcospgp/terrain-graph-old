@@ -5,7 +5,7 @@ using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 using UnityEngine;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.Graph {
     public class NodePreview {
         private const int PREVIEW_WIDTH = 128;
 

@@ -9,7 +9,7 @@ using UnityEditor;
 using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEngine.UIElements;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.Graph {
     [SuppressMessage("", "CA1001", Justification = "No need for Dispose().")]
     public class TerrainGraphWindow : GraphViewEditorWindow {
         private Task repaintTask;

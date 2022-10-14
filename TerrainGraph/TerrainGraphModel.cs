@@ -6,7 +6,7 @@ using System;
 using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.Graph {
     [Serializable]
     public class TerrainGraphModel : GraphModel {
         public TerrainGraphModel() {

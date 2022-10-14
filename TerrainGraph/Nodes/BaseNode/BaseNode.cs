@@ -7,7 +7,7 @@ using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 using UnityEngine;
 using UnityEngine.GraphToolsFoundation.Overdrive;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.Graph {
     [Serializable]
     public abstract class BaseNode : NodeModel {
         // Remember whether preview is expanded or collapsed.

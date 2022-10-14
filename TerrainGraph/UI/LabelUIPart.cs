@@ -2,7 +2,7 @@ using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace MarcosPereira.Terrain.Editor {
+namespace MarcosPereira.Terrain.Graph.Editor {
     public class LabelUIPart : BaseUIPart {
         private readonly string content;
         private readonly string tooltip;

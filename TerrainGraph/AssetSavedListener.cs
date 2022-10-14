@@ -4,8 +4,9 @@ using System;
 using UnityEditor;
 using UnityEngine;
 
+// This class is in a more accessible namespace because it is commonly used.
 namespace MarcosPereira.Terrain {
-    public class AssetSavedListener : UnityEditor.AssetModificationProcessor {
+    public class AssetSavedListener : AssetModificationProcessor {
         private static string listenPath;
         private static Action callback;
 

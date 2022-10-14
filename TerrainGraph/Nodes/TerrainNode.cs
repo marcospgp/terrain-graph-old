@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MarcosPereira.Terrain.Graph;
 using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 using UnityEngine;
@@ -12,9 +13,10 @@ using UnityEngine.GraphToolsFoundation.Overdrive;
 using UnityEngine.UIElements;
 
 #if UNITY_EDITOR
-using MarcosPereira.Terrain.Editor;
+using MarcosPereira.Terrain.Graph.Editor;
 #endif
 
+// This class is in a more accessible namespace because it is commonly used.
 namespace MarcosPereira.Terrain {
     [Serializable]
     public class TerrainNode : NodeModel {

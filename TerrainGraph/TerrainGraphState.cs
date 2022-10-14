@@ -4,7 +4,7 @@ using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEngine;
 using UnityEngine.GraphToolsFoundation.CommandStateObserver;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.Graph {
     public class TerrainGraphState : GraphToolState {
         public TerrainGraphState(
             Hash128 graphViewEditorWindowGUID,

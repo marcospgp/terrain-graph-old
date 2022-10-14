@@ -9,7 +9,7 @@ using UnityEditor.GraphToolsFoundation.Overdrive;
 using UnityEngine;
 using UnityEngine.GraphToolsFoundation.Overdrive;
 
-namespace MarcosPereira.Terrain {
+namespace MarcosPereira.Terrain.Graph {
 #if UNITY_EDITOR
 
     [SearcherItem(
