@@ -59,13 +59,26 @@ namespace MarcosPereira.Terrain {
             this.UpdateCenterChunk(this.centerChunk);
         }
 
-        // Enumerates int coordinates for a spiral.
+        // Enumerates int coordinates for a spiral that forms a disc around a
+        // given center.
         private static IEnumerable<(int, int)> Spiral((int x, int z) center, int radius) {
             if (radius == 0) {
                 yield break;
             }
 
             yield return center;
+
+            // Used to select chunks within the radius from the enumerated plane.
+            bool IsWithinRadius((int x, int z) chunk) {
+                var offset = Vector2.one * (TerrainGraph.CHUNK_WIDTH / 2f);
+
+                return Mathf.FloorToInt(
+                    Vector2.Distance(
+                        new Vector2(chunk.x, chunk.z) + offset,
+                        new Vector2(center.x, center.z) + offset
+                    )
+                ) <= radius;
+            }
 
             int x = center.x;
             int z = center.z;
@@ -74,22 +87,32 @@ namespace MarcosPereira.Terrain {
                 z -= 1;
 
                 for (; x < center.x + distance; x++) {
-                    yield return (x, z);
+                    if (IsWithinRadius((x, z))) {
+                        yield return (x, z);
+                    }
                 }
 
                 for (; z < center.z + distance; z++) {
-                    yield return (x, z);
+                    if (IsWithinRadius((x, z))) {
+                        yield return (x, z);
+                    }
                 }
 
                 for (; x > center.x - distance; x--) {
-                    yield return (x, z);
+                    if (IsWithinRadius((x, z))) {
+                        yield return (x, z);
+                    }
                 }
 
                 for (; z > center.z - distance; z--) {
-                    yield return (x, z);
+                    if (IsWithinRadius((x, z))) {
+                        yield return (x, z);
+                    }
                 }
 
-                yield return (x, z);
+                if (IsWithinRadius((x, z))) {
+                    yield return (x, z);
+                }
             }
         }
 
