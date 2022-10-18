@@ -32,6 +32,8 @@ namespace MarcosPereira.Terrain {
             if (this.updateCenterChunkCoroutine != null) {
                 this.terrainGraph.StopCoroutine(this.updateCenterChunkCoroutine);
 
+                this.updateCenterChunkCoroutine = null;
+
                 // Last chunk may be partially built since we interrupted coroutine,
                 // so destroy it
                 Object.Destroy(this.chunks[this.lastBuiltChunk.Value]);
@@ -59,7 +61,7 @@ namespace MarcosPereira.Terrain {
             this.UpdateCenterChunk(this.centerChunk);
         }
 
-        // Enumerates int coordinates for a spiral that forms a disc around a
+        // Enumerates int coordinates for a spiral that forms a disk around a
         // given center.
         private static IEnumerable<(int, int)> Spiral((int x, int z) center, int radius) {
             if (radius == 0) {
@@ -117,12 +119,6 @@ namespace MarcosPereira.Terrain {
         }
 
         private IEnumerator UpdateCenterChunkCoroutine() {
-            // Wait for previous coroutine to end if it is underway, so that
-            // we do not end up with partially-built chunks.
-            if (this.updateCenterChunkCoroutine != null) {
-                yield return this.updateCenterChunkCoroutine;
-            }
-
             IEnumerable<(int, int)> newActiveChunks =
                 Spiral(this.centerChunk, this.terrainGraph.viewDistance + 1);
 
