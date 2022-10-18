@@ -36,9 +36,11 @@ namespace MarcosPereira.Terrain {
 
                 // Last chunk may be partially built since we interrupted coroutine,
                 // so destroy it
-                Object.Destroy(this.chunks[this.lastBuiltChunk.Value]);
-                _ = this.chunks.Remove(this.lastBuiltChunk.Value);
-                this.lastBuiltChunk = null;
+                if (this.lastBuiltChunk != null) {
+                    Object.Destroy(this.chunks[this.lastBuiltChunk.Value]);
+                    _ = this.chunks.Remove(this.lastBuiltChunk.Value);
+                    this.lastBuiltChunk = null;
+                }
             }
 
             this.updateCenterChunkCoroutine = this.terrainGraph.StartCoroutine(
@@ -61,7 +63,7 @@ namespace MarcosPereira.Terrain {
             this.UpdateCenterChunk(this.centerChunk);
         }
 
-        // Enumerates int coordinates for a spiral that forms a disk around a
+        // Enumerates coordinates for a spiral that forms a disk around a
         // given center.
         private static IEnumerable<(int, int)> Spiral((int x, int z) center, int radius) {
             if (radius == 0) {
@@ -72,12 +74,12 @@ namespace MarcosPereira.Terrain {
 
             // Used to select chunks within the radius from the enumerated plane.
             bool IsWithinRadius((int x, int z) chunk) {
-                var offset = Vector2.one * (TerrainGraph.CHUNK_WIDTH / 2f);
+                const float offset = TerrainGraph.CHUNK_WIDTH / 2f;
 
                 return Mathf.FloorToInt(
                     Vector2.Distance(
-                        new Vector2(chunk.x, chunk.z) + offset,
-                        new Vector2(center.x, center.z) + offset
+                        new Vector2(chunk.x + offset, chunk.z + offset),
+                        new Vector2(center.x + offset, center.z + offset)
                     )
                 ) <= radius;
             }
@@ -85,28 +87,28 @@ namespace MarcosPereira.Terrain {
             int x = center.x;
             int z = center.z;
 
-            for (int distance = 1; distance < radius; distance++) {
+            for (int i = 1; i < radius; i++) {
                 z -= 1;
 
-                for (; x < center.x + distance; x++) {
+                for (; x < center.x + i; x++) {
                     if (IsWithinRadius((x, z))) {
                         yield return (x, z);
                     }
                 }
 
-                for (; z < center.z + distance; z++) {
+                for (; z < center.z + i; z++) {
                     if (IsWithinRadius((x, z))) {
                         yield return (x, z);
                     }
                 }
 
-                for (; x > center.x - distance; x--) {
+                for (; x > center.x - i; x--) {
                     if (IsWithinRadius((x, z))) {
                         yield return (x, z);
                     }
                 }
 
-                for (; z > center.z - distance; z--) {
+                for (; z > center.z - i; z--) {
                     if (IsWithinRadius((x, z))) {
                         yield return (x, z);
                     }
@@ -119,10 +121,27 @@ namespace MarcosPereira.Terrain {
         }
 
         private IEnumerator UpdateCenterChunkCoroutine() {
-            IEnumerable<(int, int)> newActiveChunks =
-                Spiral(this.centerChunk, this.terrainGraph.viewDistance + 1);
+            // Enumerate chunk coordinates (in chunk space)
+            IEnumerable<(int, int)> spiral = Spiral(
+                this.centerChunk,
+                (this.terrainGraph.viewDistance * 4) + 1
+            );
 
-            foreach ((int x, int z) pos in newActiveChunks) {
+            foreach ((int x, int z) pos in spiral) {
+                int radius = Mathf.FloorToInt(
+                    Vector2.Distance(
+                        new Vector2(pos.x, pos.z),
+                        new Vector2(this.centerChunk.x, this.centerChunk.z)
+                    )
+                );
+
+                // Resolution level of 0 = 1 unit per vertex.
+                // Each additional level divides resolution by 2, used for
+                // distant chunks.
+                int resolutionLevel = radius / (this.terrainGraph.viewDistance + 1);
+
+                // TODO: continue
+
                 if (this.chunks.TryGetValue(pos, out GameObject obj)) {
                     obj.SetActive(true);
                 } else {
