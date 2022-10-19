@@ -96,12 +96,7 @@ namespace MarcosPereira.Terrain {
                     nodeModel => nodeModel is TerrainNode
                 );
 
-            (int, int) playerChunk = (
-                Mathf.FloorToInt(this.player.position.x / CHUNK_WIDTH),
-                Mathf.FloorToInt(this.player.position.x / CHUNK_WIDTH)
-            );
-
-            this.chunkManager.UpdateCenterChunk(playerChunk);
+            this.chunkManager.UpdateCenterChunk(this.player.position);
 
             _ = this.StartCoroutine(this.MonitorPlayerPosition());
         }
@@ -125,8 +120,8 @@ namespace MarcosPereira.Terrain {
 
                 // Center of center chunk, in world space
                 (float x, float z) worldCenter = (
-                    (this.chunkManager.centerChunk.x * CHUNK_WIDTH) + (CHUNK_WIDTH / 2f),
-                    (this.chunkManager.centerChunk.z * CHUNK_WIDTH) + (CHUNK_WIDTH / 2f)
+                    this.chunkManager.centerChunk.x + (CHUNK_WIDTH / 2f),
+                    this.chunkManager.centerChunk.z + (CHUNK_WIDTH / 2f)
                 );
 
                 float distance = Mathf.Sqrt(
@@ -134,20 +129,8 @@ namespace MarcosPereira.Terrain {
                     Mathf.Pow(worldCenter.z - this.player.position.z, 2f)
                 );
 
-                // UnityEngine.Debug.Log($"distance: {distance:0.00} maxDistance: {maxDistance:0.00}");
-
                 if (distance > maxDistance) {
-                    (int, int) newCenterChunk = (
-                        Mathf.FloorToInt(this.player.position.x / CHUNK_WIDTH),
-                        Mathf.FloorToInt(this.player.position.z / CHUNK_WIDTH)
-                    );
-
-                    // UnityEngine.Debug.Log(
-                    //     "Max distance reached. Updating center chunk...\n" +
-                    //     $"old: {this.chunkManager.centerChunk} new: {newCenterChunk}"
-                    // );
-
-                    this.chunkManager.UpdateCenterChunk(newCenterChunk);
+                    this.chunkManager.UpdateCenterChunk(this.player.position);
                 }
             }
         }

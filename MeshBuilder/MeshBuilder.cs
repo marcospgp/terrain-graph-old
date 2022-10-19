@@ -4,8 +4,7 @@ using UnityEngine;
 namespace MarcosPereira.Terrain {
     public static class MeshBuilder {
         public static async Task<Mesh> BuildChunkMesh(
-            int worldX,
-            int worldZ,
+            (int x, int z) worldPosition,
             int chunkWidth,
             TerrainNode node,
             string name = "Unnamed mesh"
@@ -16,7 +15,8 @@ namespace MarcosPereira.Terrain {
             // Build chunk with 1-unit border, to get accurate normals at chunk edge.
             width += 2;
 
-            float[,] heightmap = await node.GetHeightmap(worldX - 1, worldZ - 1, width);
+            float[,] heightmap =
+                await node.GetHeightmap(worldPosition.x - 1, worldPosition.z - 1, width);
 
             var vertices = new Vector3[width * width];
             int[] triangles = new int[(width - 1) * (width - 1) * 2 * 3];

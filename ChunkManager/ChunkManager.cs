@@ -1,16 +1,20 @@
 using System.Collections;
 using System.Collections.Generic;
 using MarcosPereira.Terrain.ChunkManagerNS;
+using MarcosPereira.UnityUtilities;
 using UnityEngine;
 
 namespace MarcosPereira.Terrain {
     public class ChunkManager {
-        public (int x, int z) centerChunk = (0, 0);
+        /// <summary>
+        /// World position of center chunk's southwest corner.
+        /// </summary>
+        public (int x, int z) centerChunk;
 
         // Chunks stored by coordinates in chunk space (not world space).
         // Chunk (2, 2) will be at (2, 2) * CHUNK_WIDTH.
-        private readonly Dictionary<(int, int), GameObject> chunks =
-            new Dictionary<(int, int), GameObject>();
+        private readonly Dictionary<(int, int), Chunk> chunks =
+            new Dictionary<(int, int), Chunk>();
 
         private readonly TerrainGraph terrainGraph;
 
@@ -26,18 +30,28 @@ namespace MarcosPereira.Terrain {
         public static void WarnUnreadableMeshes(List<EnvironmentObjectGroup> x) =>
             Environment.WarnUnreadableMeshes(x);
 
+        public void UpdateCenterChunk(Vector3 playerPosition) {
+            const int cw = TerrainGraph.CHUNK_WIDTH;
+
+            (int, int) newCenterChunk = (
+                cw * Mathf.FloorToInt(playerPosition.x / cw),
+                cw * Mathf.FloorToInt(playerPosition.z / cw)
+            );
+
+            this.UpdateCenterChunk(newCenterChunk);
+        }
+
         public void UpdateCenterChunk((int, int) newCenterChunk) {
             this.centerChunk = newCenterChunk;
 
             if (this.updateCenterChunkCoroutine != null) {
                 this.terrainGraph.StopCoroutine(this.updateCenterChunkCoroutine);
-
                 this.updateCenterChunkCoroutine = null;
 
                 // Last chunk may be partially built since we interrupted coroutine,
                 // so destroy it
                 if (this.lastBuiltChunk != null) {
-                    Object.Destroy(this.chunks[this.lastBuiltChunk.Value]);
+                    this.chunks[this.lastBuiltChunk.Value].Destroy();
                     _ = this.chunks.Remove(this.lastBuiltChunk.Value);
                     this.lastBuiltChunk = null;
                 }
@@ -54,8 +68,8 @@ namespace MarcosPereira.Terrain {
             // all of them.
             this.terrainGraph.StopCoroutine(this.updateCenterChunkCoroutine);
 
-            foreach (GameObject chunk in this.chunks.Values) {
-                UnityEngine.Object.Destroy(chunk);
+            foreach (Chunk chunk in this.chunks.Values) {
+                chunk.Destroy();
             }
 
             this.chunks.Clear();
@@ -63,52 +77,49 @@ namespace MarcosPereira.Terrain {
             this.UpdateCenterChunk(this.centerChunk);
         }
 
-        // Enumerates coordinates for a spiral that forms a disk around a
-        // given center.
-        private static IEnumerable<(int, int)> Spiral((int x, int z) center, int radius) {
+        // Enumerates coordinates for a spiral.
+        private static IEnumerable<(int, int)> Spiral(int radius) {
             if (radius == 0) {
                 yield break;
             }
 
-            yield return center;
+            int x = 0;
+            int z = 0;
 
-            // Used to select chunks within the radius from the enumerated plane.
-            bool IsWithinRadius((int x, int z) chunk) {
-                const float offset = TerrainGraph.CHUNK_WIDTH / 2f;
+            yield return (x, z);
 
-                return Mathf.FloorToInt(
-                    Vector2.Distance(
-                        new Vector2(chunk.x + offset, chunk.z + offset),
-                        new Vector2(center.x + offset, center.z + offset)
-                    )
-                ) <= radius;
+            // Used to select coordinates within the radius, as we loop defining
+            // a plane, not a disk.
+            bool IsWithinRadius((int x, int z) pos) {
+                int norm = Mathf.FloorToInt(
+                    Mathf.Sqrt(Mathf.Pow(pos.x, 2f) + Mathf.Pow(pos.z, 2f))
+                );
+
+                return norm <= radius;
             }
-
-            int x = center.x;
-            int z = center.z;
 
             for (int i = 1; i < radius; i++) {
                 z -= 1;
 
-                for (; x < center.x + i; x++) {
+                for (; x < +i; x++) {
                     if (IsWithinRadius((x, z))) {
                         yield return (x, z);
                     }
                 }
 
-                for (; z < center.z + i; z++) {
+                for (; z < +i; z++) {
                     if (IsWithinRadius((x, z))) {
                         yield return (x, z);
                     }
                 }
 
-                for (; x > center.x - i; x--) {
+                for (; x > -i; x--) {
                     if (IsWithinRadius((x, z))) {
                         yield return (x, z);
                     }
                 }
 
-                for (; z > center.z - i; z--) {
+                for (; z > -i; z--) {
                     if (IsWithinRadius((x, z))) {
                         yield return (x, z);
                     }
@@ -121,56 +132,58 @@ namespace MarcosPereira.Terrain {
         }
 
         private IEnumerator UpdateCenterChunkCoroutine() {
-            // Enumerate chunk coordinates (in chunk space)
-            IEnumerable<(int, int)> spiral = Spiral(
-                this.centerChunk,
-                (this.terrainGraph.viewDistance * 4) + 1
-            );
+            int radius = (this.terrainGraph.viewDistance * 4) + 1;
 
-            foreach ((int x, int z) pos in spiral) {
-                int radius = Mathf.FloorToInt(
-                    Vector2.Distance(
-                        new Vector2(pos.x, pos.z),
-                        new Vector2(this.centerChunk.x, this.centerChunk.z)
-                    )
+            IEnumerable<(int, int)> spiral = Spiral(radius);
+
+            var newActiveChunks = new List<(int, int)>();
+
+            foreach ((int x, int z) offset in spiral) {
+                (int x, int z) chunkPos = (
+                    this.centerChunk.x + (TerrainGraph.CHUNK_WIDTH * offset.x),
+                    this.centerChunk.z + (TerrainGraph.CHUNK_WIDTH * offset.z)
                 );
+
+                newActiveChunks.Add(chunkPos);
 
                 // Resolution level of 0 = 1 unit per vertex.
                 // Each additional level divides resolution by 2, used for
                 // distant chunks.
-                int resolutionLevel = radius / (this.terrainGraph.viewDistance + 1);
+                int resolutionLevel =
+                    Mathf.FloorToInt(offset.Norm()) /
+                    (this.terrainGraph.viewDistance + 1);
 
-                // TODO: continue
+                UnityEngine.Debug.Log($"Chunk {chunkPos} resolution level: {resolutionLevel}");
 
-                if (this.chunks.TryGetValue(pos, out GameObject obj)) {
-                    obj.SetActive(true);
-                } else {
-                    // Build newly active chunks that weren't built before
+                bool build = true;
 
-                    // UnityEngine.Debug.Log($"Building chunk x{pos.x}_z{pos.z}");
+                if (this.chunks.TryGetValue(chunkPos, out Chunk chunk)) {
+                    if (chunk.resolutionLevel == resolutionLevel) {
+                        build = false;
+                        chunk.gameObject.SetActive(true);
+                    } else {
+                        chunk.Destroy();
+                        _ = this.chunks.Remove(chunkPos);
+                    }
+                }
 
-                    // Build gameobject right away so we can keep track of it,
-                    // even if coroutine gets interrupted.
-                    var chunk = new GameObject();
-
-                    this.lastBuiltChunk = pos;
-
-                    this.chunks.Add(pos, chunk);
-
-                    // Avoid cluttering the hierarchy root.
-                    // I believe this would only be costly in performance if the
-                    // chunks moved during gameplay, which is not the case.
-                    chunk.transform.SetParent(this.terrainGraph.transform);
-
-                    yield return ChunkBuilder.BuildChunk(
-                        (pos.x, pos.z),
-                        chunk,
+                if (build) {
+                    chunk = new Chunk(
+                        chunkPos,
+                        resolutionLevel,
                         this.terrainGraph
                     );
+
+                    this.lastBuiltChunk = chunkPos;
+
+                    this.chunks.Add(chunkPos, chunk);
+
+                    // Build chunks in sequence.
+                    yield return chunk.buildCoroutine;
                 }
             }
 
-            // Disable non active chunks.
+            // Destroy non active chunks.
             foreach (var x in this.chunks) {
                 bool active = false;
 
@@ -182,7 +195,8 @@ namespace MarcosPereira.Terrain {
                 }
 
                 if (!active) {
-                    x.Value.SetActive(false);
+                    x.Value.Destroy();
+                    _ = this.chunks.Remove(x.Key);
                 }
 
                 // Wait a frame to avoid slowing game down
