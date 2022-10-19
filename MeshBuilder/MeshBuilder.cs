@@ -33,10 +33,7 @@ namespace MarcosPereira.Terrain {
                 for (int j = 0; j < w; j++) {
                     var vertexPosition = new Vector3(
                         i * stepSize,
-                        heightmap[
-                            Mathf.FloorToInt(i * stepSize),
-                            Mathf.FloorToInt(j * stepSize)
-                        ],
+                        heightmap[i, j],
                         j * stepSize
                     );
 
