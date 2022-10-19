@@ -11,7 +11,6 @@ using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 using UnityEngine;
 using UnityEngine.GraphToolsFoundation.Overdrive;
 using UnityEngine.UIElements;
-using System.IO;
 
 #if UNITY_EDITOR
 using MarcosPereira.Terrain.Graph.Editor;
