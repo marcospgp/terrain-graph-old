@@ -114,9 +114,12 @@ namespace MarcosPereira.Terrain {
                 // One must be careful when setting the distance at which this
                 // is done, to avoid a hard boundary that can cause chunk
                 // regeneration by repeatedly being crossed.
-                // Here, we set it to the length of a chunk's diagonal.
 
-                float maxDistance = Mathf.Sqrt(CHUNK_WIDTH * CHUNK_WIDTH * 2f);
+                float minTriggerDistance = Mathf.Sqrt(CHUNK_WIDTH * CHUNK_WIDTH * 2f);
+
+                float triggerDistance = (CHUNK_WIDTH * this.viewDistance) / 3;
+
+                float maxDistance = Mathf.Max(minTriggerDistance, triggerDistance);
 
                 // Center of center chunk, in world space
                 (float x, float z) worldCenter = (

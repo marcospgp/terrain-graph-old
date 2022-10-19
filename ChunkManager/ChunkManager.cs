@@ -20,8 +20,7 @@ namespace MarcosPereira.Terrain {
 
         private Coroutine updateCenterChunkCoroutine;
 
-        // Nullable to prevent misuse.
-        private (int, int)? lastBuiltChunk;
+        private Chunk pendingChunk;
 
         public ChunkManager(TerrainGraph terrainGraph) {
             this.terrainGraph = terrainGraph;
@@ -38,27 +37,8 @@ namespace MarcosPereira.Terrain {
                 cw * Mathf.FloorToInt(playerPosition.z / cw)
             );
 
-            this.UpdateCenterChunk(newCenterChunk);
-        }
-
-        public void UpdateCenterChunk((int, int) newCenterChunk) {
-            this.centerChunk = newCenterChunk;
-
-            if (this.updateCenterChunkCoroutine != null) {
-                this.terrainGraph.StopCoroutine(this.updateCenterChunkCoroutine);
-                this.updateCenterChunkCoroutine = null;
-
-                // Last chunk may be partially built since we interrupted coroutine,
-                // so destroy it
-                if (this.lastBuiltChunk != null) {
-                    this.chunks[this.lastBuiltChunk.Value].Destroy();
-                    _ = this.chunks.Remove(this.lastBuiltChunk.Value);
-                    this.lastBuiltChunk = null;
-                }
-            }
-
             this.updateCenterChunkCoroutine = this.terrainGraph.StartCoroutine(
-                this.UpdateCenterChunkCoroutine()
+                this.UpdateCenterChunk(newCenterChunk)
             );
         }
 
@@ -74,7 +54,9 @@ namespace MarcosPereira.Terrain {
 
             this.chunks.Clear();
 
-            this.UpdateCenterChunk(this.centerChunk);
+            this.updateCenterChunkCoroutine = this.terrainGraph.StartCoroutine(
+                this.UpdateCenterChunk(this.centerChunk)
+            );
         }
 
         // Enumerates coordinates for a spiral.
@@ -131,12 +113,24 @@ namespace MarcosPereira.Terrain {
             }
         }
 
-        private IEnumerator UpdateCenterChunkCoroutine() {
+        private IEnumerator UpdateCenterChunk((int, int) newCenterChunk) {
+            this.centerChunk = newCenterChunk;
+
+            if (this.updateCenterChunkCoroutine != null) {
+                // Interrupt possible running coroutine.
+                this.terrainGraph.StopCoroutine(this.updateCenterChunkCoroutine);
+                this.updateCenterChunkCoroutine = null;
+
+                // Destroy pending chunk which was likely left unfinished.
+                _ = this.chunks.Remove(this.pendingChunk.pos);
+                this.pendingChunk.Destroy();
+            }
+
             int radius = (this.terrainGraph.viewDistance * 4) + 1;
 
             IEnumerable<(int, int)> spiral = Spiral(radius);
 
-            var newActiveChunks = new List<(int, int)>();
+            var activeChunks = new List<(int, int)>();
 
             foreach ((int x, int z) offset in spiral) {
                 (int x, int z) chunkPos = (
@@ -144,7 +138,7 @@ namespace MarcosPereira.Terrain {
                     this.centerChunk.z + (TerrainGraph.CHUNK_WIDTH * offset.z)
                 );
 
-                newActiveChunks.Add(chunkPos);
+                activeChunks.Add(chunkPos);
 
                 // Resolution level of 0 = 1 unit per vertex.
                 // Each additional level divides resolution by 2, used for
@@ -153,41 +147,29 @@ namespace MarcosPereira.Terrain {
                     Mathf.FloorToInt(offset.Norm()) /
                     (this.terrainGraph.viewDistance + 1);
 
-                UnityEngine.Debug.Log($"Chunk {chunkPos} resolution level: {resolutionLevel}");
-
-                bool build = true;
-
                 if (this.chunks.TryGetValue(chunkPos, out Chunk chunk)) {
-                    if (chunk.resolutionLevel == resolutionLevel) {
-                        build = false;
-                        chunk.gameObject.SetActive(true);
-                    } else {
-                        chunk.Destroy();
-                        _ = this.chunks.Remove(chunkPos);
+                    if (chunk.resolutionLevel != resolutionLevel) {
+                        yield return chunk.SetResolutionLevel(resolutionLevel);
                     }
-                }
-
-                if (build) {
+                } else {
                     chunk = new Chunk(
                         chunkPos,
-                        resolutionLevel,
                         this.terrainGraph
                     );
 
-                    this.lastBuiltChunk = chunkPos;
-
                     this.chunks.Add(chunkPos, chunk);
+                    this.pendingChunk = chunk;
 
-                    // Build chunks in sequence.
-                    yield return chunk.buildCoroutine;
+                    yield return chunk.SetResolutionLevel(resolutionLevel);
                 }
             }
 
             // Destroy non active chunks.
+            var toRemove = new List<(int, int)>();
             foreach (var x in this.chunks) {
                 bool active = false;
 
-                foreach ((int, int) pos in newActiveChunks) {
+                foreach ((int, int) pos in activeChunks) {
                     if (x.Key == pos) {
                         active = true;
                         break;
@@ -196,11 +178,15 @@ namespace MarcosPereira.Terrain {
 
                 if (!active) {
                     x.Value.Destroy();
-                    _ = this.chunks.Remove(x.Key);
+                    toRemove.Add(x.Key);
                 }
 
                 // Wait a frame to avoid slowing game down
                 yield return null;
+            }
+
+            foreach (var key in toRemove) {
+                _ = this.chunks.Remove(key);
             }
         }
     }

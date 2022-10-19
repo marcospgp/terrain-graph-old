@@ -4,7 +4,7 @@ using MarcosPereira.UnityUtilities;
 using UnityEngine;
 
 namespace MarcosPereira.Terrain.ChunkManagerNS {
-    public class Chunk {
+    public sealed class Chunk {
         /// <summary>
         /// Position in world space of the chunk's southwest corner (lowest XZ
         /// coordinate).
@@ -13,24 +13,22 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
 
         public readonly GameObject gameObject;
 
-        // Resolution level of 0 = 1 unit per vertex.
-        // Each additional level divides resolution by 2, used for
-        // distant chunks.
-        public readonly int resolutionLevel;
+        public int resolutionLevel = -1;
 
-        // Expose build coroutine so it can be awaited by caller.
-        public readonly Coroutine buildCoroutine;
-
-        // Used to manage coroutines
         private readonly TerrainGraph terrainGraph;
 
+        private readonly MeshFilter meshFilter;
+
+        /// <summary>
+        /// Creates a new empty chunk.
+        /// This is used instead of an asynchronous factory method so that a
+        /// reference to the chunk is immediately available.
+        /// </summary>
         public Chunk(
             (int x, int z) worldPosition,
-            int resolutionLevel,
             TerrainGraph terrainGraph
         ) {
             this.pos = worldPosition;
-            this.resolutionLevel = resolutionLevel;
             this.terrainGraph = terrainGraph;
 
             this.gameObject = new GameObject {
@@ -49,22 +47,28 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
             MeshRenderer meshRenderer = this.gameObject.AddComponent<MeshRenderer>();
             meshRenderer.material = terrainGraph.terrainMaterial;
 
-            MeshFilter meshFilter = this.gameObject.AddComponent<MeshFilter>();
-
-            this.buildCoroutine = this.terrainGraph.StartCoroutine(
-                this.Build(meshFilter)
-            );
+            this.meshFilter = this.gameObject.AddComponent<MeshFilter>();
         }
 
         public void Destroy() {
-            if (this.buildCoroutine != null) {
-                this.terrainGraph.StopCoroutine(this.buildCoroutine);
-            }
-
             UnityEngine.Object.Destroy(this.gameObject);
         }
 
-        private IEnumerator Build(MeshFilter meshFilter) {
+        /// <summary>
+        /// Resolution level of 0 = 1 vertex per unit.
+        /// Any additional level divides that resolution by 2.
+        /// </summary>
+        public IEnumerator SetResolutionLevel(int level) {
+            if (level == this.resolutionLevel) {
+                yield break;
+            }
+
+            // Give coroutine a chance to stop if it was asked to stop, in case
+            // this chunk is destroyed.
+            yield return null;
+
+            this.resolutionLevel = level;
+
             Task<Mesh> t = MeshBuilder.BuildChunkMesh(
                 this.pos,
                 TerrainGraph.CHUNK_WIDTH,
@@ -76,11 +80,14 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
 
             Mesh mesh = t.Result;
 
-            meshFilter.mesh = mesh;
+            this.meshFilter.mesh = mesh;
 
             _ = this.gameObject.AddComponent<MeshCollider>();
 
-            if (this.terrainGraph.placeEnvironmentObjects && this.resolutionLevel == 0) {
+            if (
+                this.terrainGraph.placeEnvironmentObjects &&
+                this.resolutionLevel == 0
+            ) {
                 yield return this.PlaceEnvironmentObjects();
             }
         }
