@@ -23,7 +23,7 @@ namespace MarcosPereira.Terrain.Graph {
     [Serializable]
     public class SmoothstepNode : BaseNode {
         public override Task<List<float>> Execute(
-            List<Vector3Int> points,
+            List<Vector2> points,
             List<float>[] inputs,
             string outputPortName
         ) {

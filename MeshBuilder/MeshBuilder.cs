@@ -7,40 +7,55 @@ namespace MarcosPereira.Terrain {
             (int x, int z) worldPosition,
             int chunkWidth,
             TerrainNode node,
+            int resolutionLevel,
             string name = "Unnamed mesh"
         ) {
             // Width in vertices
-            int width = chunkWidth + 1;
+            int w = 2 + ((chunkWidth - 1) / (1 + resolutionLevel));
 
-            // Build chunk with 1-unit border, to get accurate normals at chunk edge.
-            width += 2;
+            float stepSize = (float) chunkWidth / (w - 1);
 
-            float[,] heightmap =
-                await node.GetHeightmap(worldPosition.x - 1, worldPosition.z - 1, width);
+            // Build chunk with 1-unit border, to get accurate normals at chunk
+            // edge.
+            w += 2;
 
-            var vertices = new Vector3[width * width];
-            int[] triangles = new int[(width - 1) * (width - 1) * 2 * 3];
+            float[,] heightmap = await node.GetHeightmap(
+                worldPosition.x - 1,
+                worldPosition.z - 1,
+                w - 1,
+                stepSize
+            );
 
-            for (int i = 0; i < width; i++) {
-                for (int j = 0; j < width; j++) {
-                    var vertexPosition = new Vector3(i, heightmap[i, j], j);
+            var vertices = new Vector3[w * w];
+            int[] triangles = new int[(w - 1) * (w - 1) * 2 * 3];
+
+            for (int i = 0; i < w; i++) {
+                for (int j = 0; j < w; j++) {
+                    var vertexPosition = new Vector3(
+                        i * stepSize,
+                        heightmap[
+                            Mathf.FloorToInt(i * stepSize),
+                            Mathf.FloorToInt(j * stepSize)
+                        ],
+                        j * stepSize
+                    );
 
                     // Offset vertex by border width, otherwise mesh origin will
                     // be offset itself
                     vertexPosition -= new Vector3(1f, 0f, 1f);
 
-                    vertices[GetIndex(i, j, width)] = vertexPosition;
+                    vertices[GetIndex(i, j, w)] = vertexPosition;
 
                     if (i > 0 && j > 0) {
-                        int ti = GetTriangleIndex(i, j, width);
+                        int ti = GetTriangleIndex(i, j, w);
 
-                        triangles[ti] = GetIndex(i, j, width);
-                        triangles[ti + 1] = GetIndex(i - 1, j - 1, width);
-                        triangles[ti + 2] = GetIndex(i - 1, j, width);
+                        triangles[ti] = GetIndex(i, j, w);
+                        triangles[ti + 1] = GetIndex(i - 1, j - 1, w);
+                        triangles[ti + 2] = GetIndex(i - 1, j, w);
 
-                        triangles[ti + 3] = GetIndex(i, j, width);
-                        triangles[ti + 4] = GetIndex(i, j - 1, width);
-                        triangles[ti + 5] = GetIndex(i - 1, j - 1, width);
+                        triangles[ti + 3] = GetIndex(i, j, w);
+                        triangles[ti + 4] = GetIndex(i, j - 1, w);
+                        triangles[ti + 5] = GetIndex(i - 1, j - 1, w);
                     }
                 }
             }
@@ -56,26 +71,26 @@ namespace MarcosPereira.Terrain {
 
             // Now that we have calculated correct normals, create non-bordered mesh.
 
-            int width2 = width - 2;
-            var vertices2 = new Vector3[width2 * width2];
-            var normals2 = new Vector3[width2 * width2];
-            int[] triangles2 = new int[(width2 - 1) * (width2 - 1) * 2 * 3];
+            int w2 = w - 2;
+            var vertices2 = new Vector3[w2 * w2];
+            var normals2 = new Vector3[w2 * w2];
+            int[] triangles2 = new int[(w2 - 1) * (w2 - 1) * 2 * 3];
 
-            for (int i = 0; i < width2; i++) {
-                for (int j = 0; j < width2; j++) {
-                    vertices2[GetIndex(i, j, width2)] = vertices[GetIndex(i + 1, j + 1, width)];
-                    normals2[GetIndex(i, j, width2)] = normals[GetIndex(i + 1, j + 1, width)];
+            for (int i = 0; i < w2; i++) {
+                for (int j = 0; j < w2; j++) {
+                    vertices2[GetIndex(i, j, w2)] = vertices[GetIndex(i + 1, j + 1, w)];
+                    normals2[GetIndex(i, j, w2)] = normals[GetIndex(i + 1, j + 1, w)];
 
                     if (i > 0 && j > 0) {
-                        int ti = GetTriangleIndex(i, j, width2);
+                        int ti = GetTriangleIndex(i, j, w2);
 
-                        triangles2[ti] = GetIndex(i, j, width2);
-                        triangles2[ti + 1] = GetIndex(i - 1, j - 1, width2);
-                        triangles2[ti + 2] = GetIndex(i - 1, j, width2);
+                        triangles2[ti] = GetIndex(i, j, w2);
+                        triangles2[ti + 1] = GetIndex(i - 1, j - 1, w2);
+                        triangles2[ti + 2] = GetIndex(i - 1, j, w2);
 
-                        triangles2[ti + 3] = GetIndex(i, j, width2);
-                        triangles2[ti + 4] = GetIndex(i, j - 1, width2);
-                        triangles2[ti + 5] = GetIndex(i - 1, j - 1, width2);
+                        triangles2[ti + 3] = GetIndex(i, j, w2);
+                        triangles2[ti + 4] = GetIndex(i, j - 1, w2);
+                        triangles2[ti + 5] = GetIndex(i - 1, j - 1, w2);
                     }
                 }
             }

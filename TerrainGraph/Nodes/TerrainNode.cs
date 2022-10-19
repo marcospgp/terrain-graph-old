@@ -11,6 +11,7 @@ using UnityEditor.GraphToolsFoundation.Overdrive.BasicModel;
 using UnityEngine;
 using UnityEngine.GraphToolsFoundation.Overdrive;
 using UnityEngine.UIElements;
+using System.IO;
 
 #if UNITY_EDITOR
 using MarcosPereira.Terrain.Graph.Editor;
@@ -50,8 +51,14 @@ namespace MarcosPereira.Terrain {
         }
 
         /// <summary>X and Z are in world space (not chunk space).</summary>
-        public async Task<float[,]> GetHeightmap(int x, int z, int width) {
-            List<Vector3Int> points = TerrainNode.GetPoints(x, z, width);
+        public async Task<float[,]> GetHeightmap(
+            int x,
+            int z,
+            int widthInSteps,
+            float stepSize
+        ) {
+            List<Vector2> points =
+                TerrainNode.GetPoints(x, z, widthInSteps, stepSize);
 
             // Get heights in range [0, TerrainNode.maxHeight].
             List<float> heights = await TerrainNode.GetUpstreamValues(
@@ -63,7 +70,7 @@ namespace MarcosPereira.Terrain {
                 x => float.IsNaN(x) ? 0 : Mathf.Clamp01(x) * this.maxHeight
             );
 
-            return TerrainNode.ListToMap(heights, width);
+            return TerrainNode.ListToMap(heights, widthInSteps + 1);
         }
 
         /// <summary>
@@ -74,7 +81,7 @@ namespace MarcosPereira.Terrain {
             (int x, int z) worldPos,
             int width
         ) {
-            List<Vector3Int> points = TerrainNode.GetPoints(
+            List<Vector2> points = TerrainNode.GetPoints(
                 worldPos.x,
                 worldPos.z,
                 width
@@ -96,7 +103,7 @@ namespace MarcosPereira.Terrain {
         /// the second is how deep.
         /// </summary>
         public async Task<float[][,]> GetCaveMaps(int x, int z, int chunkWidth) {
-            List<Vector3Int> points = TerrainNode.GetPoints(x, z, chunkWidth);
+            List<Vector2> points = TerrainNode.GetPoints(x, z, chunkWidth);
 
             List<float> heightValues = await TerrainNode.GetUpstreamValues(
                 this.caveHeightInputPort,
@@ -176,12 +183,24 @@ namespace MarcosPereira.Terrain {
         }
 
         /// <summary>X and Z are in world space (not chunk space).</summary>
-        private static List<Vector3Int> GetPoints(int x, int z, int chunkWidth) {
-            var points = new List<Vector3Int>(chunkWidth * chunkWidth);
+        private static List<Vector2> GetPoints(
+            int x,
+            int z,
+            int widthInSteps,
+            float stepSize = 1f
+        ) {
+            int w = widthInSteps + 1;
 
-            for (int i = x; i < x + chunkWidth; i++) {
-                for (int j = z; j < z + chunkWidth; j++) {
-                    points.Add(new Vector3Int(i, 0, j));
+            var points = new List<Vector2>(w * w);
+
+            for (int i = 0; i < w; i++) {
+                for (int j = 0; j < w; j++) {
+                    points.Add(
+                        new Vector2(
+                            x + (i * stepSize),
+                            z + (j * stepSize)
+                        )
+                    );
                 }
             }
 
@@ -190,7 +209,7 @@ namespace MarcosPereira.Terrain {
 
         private static Task<List<float>> GetUpstreamValues(
             IPortModel inputPort,
-            List<Vector3Int> points
+            List<Vector2> points
         ) {
             IEnumerable<IEdgeModel> edges = inputPort.GetConnectedEdges();
 

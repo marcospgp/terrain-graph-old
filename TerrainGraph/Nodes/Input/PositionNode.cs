@@ -22,7 +22,7 @@ namespace MarcosPereira.Terrain.Graph {
     [Serializable]
     public class PositionNode : BaseNode {
         public override Task<List<float>> Execute(
-            List<Vector3Int> points,
+            List<Vector2> points,
             List<float>[] inputs,
             string outputPortName
         ) {
@@ -31,10 +31,8 @@ namespace MarcosPereira.Terrain.Graph {
             for (int i = 0; i < points.Count; i++) {
                 if (outputPortName == "X") {
                     values.Add(points[i].x);
-                } else if (outputPortName == "Y") {
-                    values.Add(points[i].y);
                 } else if (outputPortName == "Z") {
-                    values.Add(points[i].z);
+                    values.Add(points[i].y);
                 } else {
                     throw new Exception("Unknown port name.");
                 }
@@ -50,15 +48,6 @@ namespace MarcosPereira.Terrain.Graph {
                 "X",
                 TypeHandle.Float
             );
-
-            // Disable Y port for now, seems to have no use.
-            // All nodes are based on a 2D map, although the generation does
-            // involve 3D voxels so this might be reactivated later.
-            //
-            // this.AddOutputPort(
-            //     "Y",
-            //     TypeHandle.Float
-            // );
 
             this.AddOutputPort(
                 "Z",

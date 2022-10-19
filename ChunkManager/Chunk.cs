@@ -19,6 +19,8 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
 
         private readonly MeshFilter meshFilter;
 
+        private readonly MeshCollider meshCollider;
+
         /// <summary>
         /// Creates a new empty chunk.
         /// This is used instead of an asynchronous factory method so that a
@@ -48,6 +50,8 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
             meshRenderer.material = terrainGraph.terrainMaterial;
 
             this.meshFilter = this.gameObject.AddComponent<MeshFilter>();
+
+            this.meshCollider = this.gameObject.AddComponent<MeshCollider>();
         }
 
         public void Destroy() {
@@ -55,7 +59,7 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
         }
 
         /// <summary>
-        /// Resolution level of 0 = 1 vertex per unit.
+        /// Resolution level of 0 = 1 vertex per world unit.
         /// Any additional level divides that resolution by 2.
         /// </summary>
         public IEnumerator SetResolutionLevel(int level) {
@@ -73,6 +77,7 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
                 this.pos,
                 TerrainGraph.CHUNK_WIDTH,
                 this.terrainGraph.terrainNode,
+                this.resolutionLevel,
                 this.gameObject.name
             );
 
@@ -82,7 +87,10 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
 
             this.meshFilter.mesh = mesh;
 
-            _ = this.gameObject.AddComponent<MeshCollider>();
+            // Refresh mesh collider
+            // Source: https://forum.unity.com/threads/how-to-update-a-mesh-collider.32467/
+            this.meshCollider.sharedMesh = null;
+            this.meshCollider.sharedMesh = this.meshFilter.mesh;
 
             if (
                 this.terrainGraph.placeEnvironmentObjects &&

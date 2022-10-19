@@ -26,7 +26,7 @@ namespace MarcosPereira.Terrain.Graph {
         public float max = 1f;
 
         public override Task<List<float>> Execute(
-            List<Vector3Int> points,
+            List<Vector2> points,
             List<float>[] inputs,
             string outputPortName
         ) {

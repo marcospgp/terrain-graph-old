@@ -13,7 +13,7 @@ namespace MarcosPereira.Terrain.Graph {
         // so we can refresh the node preview when they change.
         private readonly List<float> embeddedConstantCache = new List<float>();
 
-        private readonly List<Vector3Int> previewPoints;
+        private readonly List<Vector2> previewPoints;
 
         private readonly BaseNode node;
 
@@ -38,15 +38,14 @@ namespace MarcosPereira.Terrain.Graph {
 
             const int width = PREVIEW_WIDTH;
 
-            var points = new List<Vector3Int>(width * width);
+            var points = new List<Vector2>(width * width);
             const float unitsPerPixel = 1000f / (float) width;
 
             for (int i = -(width / 2); i < (width / 2); i++) {
                 for (int j = -(width / 2); j < (width / 2); j++) {
                     points.Add(
-                        new Vector3Int(
+                        new Vector2(
                             Mathf.FloorToInt(i * unitsPerPixel),
-                            0,
                             Mathf.FloorToInt(j * unitsPerPixel)
                         )
                     );
@@ -150,7 +149,7 @@ namespace MarcosPereira.Terrain.Graph {
             // we refresh it.
             this.parameterChanged = false;
 
-            List<Vector3Int> points = this.previewPoints;
+            List<Vector2> points = this.previewPoints;
 
             IPortModel[] outputPorts = this.node.GetOutputPorts().ToArray();
 

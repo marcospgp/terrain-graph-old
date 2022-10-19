@@ -76,7 +76,7 @@ namespace MarcosPereira.Terrain.Graph {
             );
 
         public async Task<List<float>> GetValues(
-            List<Vector3Int> points,
+            List<Vector2> points,
             string outputPortName
         ) {
             List<float>[] upstreamValues = await this.GetUpstreamValues(points);
@@ -106,12 +106,12 @@ namespace MarcosPereira.Terrain.Graph {
         /// a value of null should be interpreted as the first port.
         /// </param>
         public abstract Task<List<float>> Execute(
-            List<Vector3Int> points,
+            List<Vector2> points,
             List<float>[] inputs,
             string outputPortName
         );
 
-        private Task<List<float>[]> GetUpstreamValues(List<Vector3Int> points) {
+        private Task<List<float>[]> GetUpstreamValues(List<Vector2> points) {
             IPortModel[] inputPorts = this.GetInputPorts().ToArray();
 
             var tasks = new Task<List<float>>[inputPorts.Length];

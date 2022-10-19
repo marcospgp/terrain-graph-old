@@ -26,14 +26,14 @@ namespace MarcosPereira.Terrain.Graph {
         public float scale = 500f;
 
         public override Task<List<float>> Execute(
-            List<Vector3Int> points,
+            List<Vector2> points,
             List<float>[] inputs,
             string outputPortName
         ) {
             var values = new List<float>(points.Count);
 
             for (int i = 0; i < points.Count; i++) {
-                float distance = Vector3Int.Distance(Vector3Int.zero, points[i]);
+                float distance = Vector2.Distance(Vector2.zero, points[i]);
 
                 float proximity = 1f / (1f + distance);
 

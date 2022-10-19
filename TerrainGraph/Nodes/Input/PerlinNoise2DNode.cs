@@ -30,7 +30,7 @@ namespace MarcosPereira.Terrain.Graph {
         public float persistence = 0.5f;
 
         public override Task<List<float>> Execute(
-            List<Vector3Int> points,
+            List<Vector2> points,
             List<float>[] inputs,
             string outputPortName
         ) =>
@@ -38,7 +38,7 @@ namespace MarcosPereira.Terrain.Graph {
                 points.ConvertAll(point =>
                     PerlinNoise.Get(
                         point.x,
-                        point.z,
+                        point.y,
                         this.seed,
                         this.baseFrequency,
                         this.numberOfOctaves,
