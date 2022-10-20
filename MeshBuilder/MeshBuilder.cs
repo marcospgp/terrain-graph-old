@@ -7,17 +7,16 @@ namespace MarcosPereira.Terrain {
             (int x, int z) worldPosition,
             int chunkWidth,
             TerrainNode node,
-            int resolutionLevel,
             string name = "Unnamed mesh"
         ) {
             // Width in vertices
-            int w = 2 + ((chunkWidth - 1) / (1 + resolutionLevel));
-
-            float stepSize = (float) chunkWidth / (w - 1);
+            int w = 1 + chunkWidth;
 
             // Build chunk with 1-unit border, to get accurate normals at chunk
             // edge.
             w += 2;
+
+            const int stepSize = 1;
 
             float[,] heightmap = await node.GetHeightmap(
                 worldPosition.x - 1,
@@ -105,8 +104,8 @@ namespace MarcosPereira.Terrain {
             return mesh;
         }
 
-        // Get the index of a vertex in a vertex array for a node with the given
-        // coordinates, belonging to a chunk of given width.
+        // Get the vertex array index of a vertex with the given coordinates,
+        // belonging to a chunk of given width.
         private static int GetIndex(int x, int z, int width) => (z * width) + x;
 
         private static int GetTriangleIndex(int x, int z, int width) =>

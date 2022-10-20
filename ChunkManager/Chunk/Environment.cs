@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using MarcosPereira.UnityUtilities;
 using UnityEngine;
 
-namespace MarcosPereira.Terrain.ChunkManagerNS {
+namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
     public static class Environment {
         public static void WarnUnreadableMeshes(List<EnvironmentObjectGroup> envObjGroups) {
             static void LogReadWriteWarning(string meshName, string objName) =>

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Threading.Tasks;
+using MarcosPereira.Terrain.ChunkManagerNS.ChunkNS;
 using MarcosPereira.UnityUtilities;
 using UnityEngine;
 
@@ -12,8 +13,6 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
         public readonly (int x, int z) pos;
 
         public readonly GameObject gameObject;
-
-        public int resolutionLevel = -1;
 
         private readonly TerrainGraph terrainGraph;
 
@@ -58,26 +57,11 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
             UnityEngine.Object.Destroy(this.gameObject);
         }
 
-        /// <summary>
-        /// Resolution level of 0 = 1 vertex per world unit.
-        /// Any additional level divides that resolution by 2.
-        /// </summary>
-        public IEnumerator SetResolutionLevel(int level) {
-            if (level == this.resolutionLevel) {
-                yield break;
-            }
-
-            // Give coroutine a chance to stop if it was asked to stop, in case
-            // this chunk is destroyed.
-            yield return null;
-
-            this.resolutionLevel = level;
-
+        public IEnumerator Build() {
             Task<Mesh> t = MeshBuilder.BuildChunkMesh(
                 this.pos,
                 TerrainGraph.CHUNK_WIDTH,
                 this.terrainGraph.terrainNode,
-                this.resolutionLevel,
                 this.gameObject.name
             );
 
@@ -92,10 +76,7 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
             this.meshCollider.sharedMesh = null;
             this.meshCollider.sharedMesh = this.meshFilter.mesh;
 
-            if (
-                this.terrainGraph.placeEnvironmentObjects &&
-                this.resolutionLevel == 0
-            ) {
+            if (this.terrainGraph.placeEnvironmentObjects) {
                 yield return this.PlaceEnvironmentObjects();
             }
         }

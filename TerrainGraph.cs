@@ -86,9 +86,10 @@ namespace MarcosPereira.Terrain {
             }
 
             // Warn user of any non read/write enabled meshes, which will
-            // prevent them from being static batched
+            // prevent them from being static batched.
             if (this.useStaticBatching) {
-                ChunkManager.WarnUnreadableMeshes(this.environmentObjectGroups);
+                ChunkManagerNS.ChunkNS.Environment
+                    .WarnUnreadableMeshes(this.environmentObjectGroups);
             }
 
             this.terrainNode =
@@ -117,9 +118,9 @@ namespace MarcosPereira.Terrain {
 
                 float minTriggerDistance = Mathf.Sqrt(CHUNK_WIDTH * CHUNK_WIDTH * 2f);
 
-                float triggerDistance = (CHUNK_WIDTH * this.viewDistance) / 3;
+                float preferredTriggerDistance = (float) (CHUNK_WIDTH * this.viewDistance) / 3f;
 
-                float maxDistance = Mathf.Max(minTriggerDistance, triggerDistance);
+                float triggerDistance = Mathf.Max(minTriggerDistance, preferredTriggerDistance);
 
                 // Center of center chunk, in world space
                 (float x, float z) worldCenter = (
@@ -132,7 +133,7 @@ namespace MarcosPereira.Terrain {
                     Mathf.Pow(worldCenter.z - this.player.position.z, 2f)
                 );
 
-                if (distance > maxDistance) {
+                if (distance > triggerDistance) {
                     this.chunkManager.UpdateCenterChunk(this.player.position);
                 }
             }

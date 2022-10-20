@@ -1,18 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using MarcosPereira.Terrain.ChunkManagerNS;
-using MarcosPereira.UnityUtilities;
 using UnityEngine;
 
 namespace MarcosPereira.Terrain {
     public class ChunkManager {
-        /// <summary>
-        /// World position of center chunk's southwest corner.
-        /// </summary>
         public (int x, int z) centerChunk;
 
-        // Chunks stored by coordinates in chunk space (not world space).
-        // Chunk (2, 2) will be at (2, 2) * CHUNK_WIDTH.
         private readonly Dictionary<(int, int), Chunk> chunks =
             new Dictionary<(int, int), Chunk>();
 
@@ -25,9 +19,6 @@ namespace MarcosPereira.Terrain {
         public ChunkManager(TerrainGraph terrainGraph) {
             this.terrainGraph = terrainGraph;
         }
-
-        public static void WarnUnreadableMeshes(List<EnvironmentObjectGroup> x) =>
-            Environment.WarnUnreadableMeshes(x);
 
         public void UpdateCenterChunk(Vector3 playerPosition) {
             const int cw = TerrainGraph.CHUNK_WIDTH;
@@ -126,7 +117,7 @@ namespace MarcosPereira.Terrain {
                 this.pendingChunk.Destroy();
             }
 
-            int radius = (this.terrainGraph.viewDistance * 4) + 1;
+            int radius = 1 + this.terrainGraph.viewDistance;
 
             IEnumerable<(int, int)> spiral = Spiral(radius);
 
@@ -140,19 +131,8 @@ namespace MarcosPereira.Terrain {
 
                 activeChunks.Add(chunkPos);
 
-                // Resolution level of 0 = 1 unit per vertex.
-                // Each additional level divides resolution by 2, used for
-                // distant chunks.
-                int resolutionLevel =
-                    Mathf.FloorToInt(offset.Norm()) /
-                    (this.terrainGraph.viewDistance + 1);
-
-                if (this.chunks.TryGetValue(chunkPos, out Chunk chunk)) {
-                    if (chunk.resolutionLevel != resolutionLevel) {
-                        yield return chunk.SetResolutionLevel(resolutionLevel);
-                    }
-                } else {
-                    chunk = new Chunk(
+                if (!this.chunks.ContainsKey(chunkPos)) {
+                    var chunk = new Chunk(
                         chunkPos,
                         this.terrainGraph
                     );
@@ -160,7 +140,7 @@ namespace MarcosPereira.Terrain {
                     this.chunks.Add(chunkPos, chunk);
                     this.pendingChunk = chunk;
 
-                    yield return chunk.SetResolutionLevel(resolutionLevel);
+                    yield return chunk.Build();
                 }
             }
 
