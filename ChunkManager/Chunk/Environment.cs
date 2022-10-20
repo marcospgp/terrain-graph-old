@@ -36,8 +36,8 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             TerrainGraph terrainGraph
         ) {
             // Minimum distance between objects.
-            // Changing this value will affect the behavior of the vegetation
-            // density port in terrain graph.
+            // Changing this value will affect how much vegetation is spawned,
+            // even if all other configuration remains the same.
             const float minSpacing = 0.1f;
 
             const int chunkWidth = TerrainGraph.CHUNK_WIDTH;
@@ -71,7 +71,7 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
                 );
 
             // Limit objects placed per frame to avoid slowing game down
-            const int objectsPerFrame = int.MaxValue;
+            const int objectsPerFrame = 64;
             int counter = 0;
 
             // Place objects.
