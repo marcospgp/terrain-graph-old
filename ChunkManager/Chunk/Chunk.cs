@@ -14,6 +14,8 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
 
         public readonly GameObject gameObject;
 
+        public float[,] borderedHeightmap;
+
         private readonly TerrainGraph terrainGraph;
 
         private readonly MeshFilter meshFilter;
@@ -33,17 +35,17 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
             this.terrainGraph = terrainGraph;
 
             this.gameObject = new GameObject {
-                name = $"chunk_x{worldPosition.x}_z{worldPosition.z}",
+                name = $"chunk_x{this.pos.x}_z{this.pos.z}",
                 layer = terrainGraph.groundLayer
             };
 
             // Avoid cluttering the hierarchy root.
             // I believe this would only be costly in performance if the
             // chunks moved during gameplay, which is not the case.
-            this.gameObject.transform.SetParent(this.terrainGraph.transform);
+            this.gameObject.transform.SetParent(terrainGraph.transform);
 
             this.gameObject.transform.position =
-                new Vector3(worldPosition.x, 0f, worldPosition.z);
+                new Vector3(this.pos.x, 0f, this.pos.z);
 
             MeshRenderer meshRenderer = this.gameObject.AddComponent<MeshRenderer>();
             meshRenderer.material = terrainGraph.terrainMaterial;
@@ -58,16 +60,24 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
         }
 
         public IEnumerator Build() {
-            Task<Mesh> t = MeshBuilder.BuildChunkMesh(
-                this.pos,
-                TerrainGraph.CHUNK_WIDTH,
-                this.terrainGraph.terrainNode,
-                this.gameObject.name
+            Task<float[,]> t = this.terrainGraph.terrainNode.GetHeightmap(
+                this.pos.x - 1,
+                this.pos.z - 1,
+                TerrainGraph.CHUNK_WIDTH + 3
             );
 
             yield return t.AsCoroutine();
 
-            Mesh mesh = t.Result;
+            this.borderedHeightmap = t.Result;
+
+            Task<Mesh> t2 = MeshBuilder.BuildChunkMesh(
+                this,
+                name: this.gameObject.name
+            );
+
+            yield return t2.AsCoroutine();
+
+            Mesh mesh = t2.Result;
 
             this.meshFilter.mesh = mesh;
 
@@ -77,27 +87,11 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
             this.meshCollider.sharedMesh = this.meshFilter.mesh;
 
             if (this.terrainGraph.placeEnvironmentObjects) {
-                yield return this.PlaceEnvironmentObjects();
-            }
-        }
-
-        private IEnumerator PlaceEnvironmentObjects() {
-            Task<float[,]> t2 =
-                this.terrainGraph.terrainNode.GetEnvironmentObjectDensity(
-                    this.pos,
-                    TerrainGraph.CHUNK_WIDTH
+                yield return Environment.PlaceObjects(
+                    this,
+                    this.terrainGraph
                 );
-
-            yield return t2.AsCoroutine();
-
-            float[,] environmentObjectDensity = t2.Result;
-
-            yield return Environment.PlaceObjects(
-                this.pos,
-                this.gameObject.transform,
-                environmentObjectDensity,
-                this.terrainGraph
-            );
+            }
         }
     }
 }

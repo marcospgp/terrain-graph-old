@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using MarcosPereira.UnityUtilities;
 using UnityEngine;
 
@@ -30,11 +31,19 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
         /// already exist in the scene.
         /// </summary>
         public static IEnumerator PlaceObjects(
-            (int x, int z) worldPos,
-            Transform chunk,
-            float[,] environmentObjectDensity,
+            Chunk chunk,
             TerrainGraph terrainGraph
         ) {
+            Task<float[,]> t2 =
+                terrainGraph.terrainNode.GetEnvironmentObjectDensity(
+                    chunk.pos,
+                    TerrainGraph.CHUNK_WIDTH
+                );
+
+            yield return t2.AsCoroutine();
+
+            float[,] environmentObjectDensity = t2.Result;
+
             // Minimum distance between objects.
             // Changing this value will affect how much vegetation is spawned,
             // even if all other configuration remains the same.
@@ -49,22 +58,21 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             // Calculate total frequency
             float envObjTotalFrequency = 0f;
             foreach (EnvironmentObjectGroup group in terrainGraph.environmentObjectGroups) {
-                // We ignore group.enabled on purpose. Disabled groups still have their
-                // frequency taken into account, so that disabling a group does not affect
-                // how many objects of other groups are placed on the terrain.
-                envObjTotalFrequency += group.frequency;
+                if (group.enabled) {
+                    envObjTotalFrequency += group.frequency;
+                }
             }
 
-            // No groups enabled or all frequencies set to 0
+            // If no groups enabled or all frequencies set to 0, cancel.
             if (envObjTotalFrequency == 0f) {
                 yield break;
             }
 
             bool PlaceObject((float, float) offset) =>
                 TryPlace(
-                    worldPos,
+                    chunk.pos,
                     offset,
-                    chunk,
+                    chunk.gameObject.transform,
                     environmentObjectDensity,
                     terrainGraph,
                     envObjTotalFrequency
@@ -135,15 +143,19 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             int groupCount = terrainGraph.environmentObjectGroups.Count;
 
             for (int i = 0; i < groupCount; i++) {
-                accumulator +=
-                    terrainGraph.environmentObjectGroups[i].frequency / envObjTotalFrequency;
+                var g = terrainGraph.environmentObjectGroups[i];
+                if (!g.enabled) {
+                    continue;
+                }
+
+                accumulator += g.frequency / envObjTotalFrequency;
 
                 // Avoid floating point inaccuracies by always picking last
                 // group if it gets to it
                 bool isLastGroup = i == groupCount - 1;
 
                 if (accumulator >= random2 || isLastGroup) {
-                    group = terrainGraph.environmentObjectGroups[i];
+                    group = g;
                     break;
                 }
             }

@@ -6,12 +6,7 @@ namespace MarcosPereira.Terrain {
     public class EnvironmentObjectGroup {
         public string label = "Unnamed group";
 
-        [Tooltip(
-            "Whether these objects will be placed on the terrain.\n" +
-            "Disabled groups still have " +
-            "their frequency taken into account, so that disabling a group " +
-            "does not affect how many objects of other groups are placed."
-        )]
+        [Tooltip("Whether objects in this group will be placed on the terrain.")]
         public bool enabled = true;
 
         [Header("Objects")]
@@ -22,7 +17,7 @@ namespace MarcosPereira.Terrain {
 
         [Tooltip(
             "How often objects in this group will appear on the terrain, " +
-            "relative to other groups."
+            "relative to objects in other (enabled) groups."
         )]
         [Range(0f, 1f)]
         public float frequency = 1f;

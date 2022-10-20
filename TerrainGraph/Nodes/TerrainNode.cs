@@ -49,12 +49,15 @@ namespace MarcosPereira.Terrain {
             );
         }
 
-        /// <summary>X and Z are in world space (not chunk space).</summary>
+        /// <summary>
+        /// X and Z are the world space coordinates of the heightmap's southwest
+        /// corner.
+        /// </summary>
         public async Task<float[,]> GetHeightmap(
             int x,
             int z,
             int widthInSteps,
-            float stepSize
+            float stepSize = 1f
         ) {
             List<Vector2> points =
                 TerrainNode.GetPoints(x, z, widthInSteps, stepSize);
@@ -69,7 +72,7 @@ namespace MarcosPereira.Terrain {
                 x => float.IsNaN(x) ? 0 : Mathf.Clamp01(x) * this.maxHeight
             );
 
-            return TerrainNode.ListToMap(heights, widthInSteps + 1);
+            return TerrainNode.ListToMap(heights, widthInSteps);
         }
 
         /// <summary>
@@ -188,12 +191,10 @@ namespace MarcosPereira.Terrain {
             int widthInSteps,
             float stepSize = 1f
         ) {
-            int w = widthInSteps + 1;
+            var points = new List<Vector2>(widthInSteps * widthInSteps);
 
-            var points = new List<Vector2>(w * w);
-
-            for (int i = 0; i < w; i++) {
-                for (int j = 0; j < w; j++) {
+            for (int i = 0; i < widthInSteps; i++) {
+                for (int j = 0; j < widthInSteps; j++) {
                     points.Add(
                         new Vector2(
                             x + (i * stepSize),
