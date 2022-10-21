@@ -13,7 +13,7 @@ namespace MarcosPereira.Terrain {
         Justification = "Choosing order fields are displayed in inspector."
     )]
     public class TerrainGraph : MonoBehaviour {
-        public const int CHUNK_WIDTH = 16;
+        public const ChunkWidth CHUNK_WIDTH = 16;
 
         [Header("References")]
 
