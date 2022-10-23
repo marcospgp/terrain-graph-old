@@ -16,11 +16,11 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
 
         public float[,] borderedHeightmap;
 
+        public float[,] vertexNormals;
+
         private readonly TerrainGraph terrainGraph;
 
         private readonly MeshFilter meshFilter;
-
-        private readonly MeshCollider meshCollider;
 
         /// <summary>
         /// Creates a new empty chunk.
@@ -51,27 +51,33 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
             meshRenderer.material = terrainGraph.terrainMaterial;
 
             this.meshFilter = this.gameObject.AddComponent<MeshFilter>();
-
-            this.meshCollider = this.gameObject.AddComponent<MeshCollider>();
         }
 
         public void Destroy() {
             UnityEngine.Object.Destroy(this.gameObject);
         }
 
-        public IEnumerator Build() {
-            Task<float[,]> t = this.terrainGraph.terrainNode.GetHeightmap(
-                this.pos.x - 1,
-                this.pos.z - 1,
-                TerrainGraph.CHUNK_WIDTH + 3
-            );
+        public IEnumerator SetQuality(
+            int reductionLevel,
+            Side higherDetailNeighbor
+        ) {
+            if (this.borderedHeightmap == null) {
+                yield return this.GetHeightmap();
+            }
 
-            yield return t.AsCoroutine();
+            if (this.vertexNormals == null) {
+                Task<float[,]> t =
+                    SafeTask.Run(() => this.CalculateVertexNormals());
 
-            this.borderedHeightmap = t.Result;
+                yield return t.AsCoroutine();
+
+                this.CalculateVertexNormals
+            }
 
             Task<Mesh> t2 = MeshBuilder.BuildChunkMesh(
                 this,
+                reductionLevel,
+                higherDetailNeighbor,
                 name: this.gameObject.name
             );
 
@@ -81,10 +87,9 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
 
             this.meshFilter.mesh = mesh;
 
-            // Refresh mesh collider
-            // Source: https://forum.unity.com/threads/how-to-update-a-mesh-collider.32467/
-            this.meshCollider.sharedMesh = null;
-            this.meshCollider.sharedMesh = this.meshFilter.mesh;
+            if (reductionLevel == 0) {
+                _ = this.gameObject.AddComponent<MeshCollider>();
+            }
 
             if (this.terrainGraph.placeEnvironmentObjects) {
                 yield return Environment.PlaceObjects(
@@ -92,6 +97,23 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
                     this.terrainGraph
                 );
             }
+        }
+
+        private IEnumerator GetHeightmap() {
+            Task<float[,]> t = this.terrainGraph.terrainNode.GetHeightmap(
+                this.pos.x - 1,
+                this.pos.z - 1,
+                TerrainGraph.CHUNK_WIDTH + 3
+            );
+
+            yield return t.AsCoroutine();
+
+            this.borderedHeightmap = t.Result;
+        }
+
+        private float[,] CalculateVertexNormals() {
+            int w = this.borderedHeightmap.GetLength(0) - 1;
+            float[,] vertexNormals = new float[w, w];
         }
     }
 }

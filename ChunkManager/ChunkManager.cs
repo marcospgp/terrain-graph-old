@@ -140,7 +140,10 @@ namespace MarcosPereira.Terrain {
                     this.chunks.Add(chunkPos, chunk);
                     this.pendingChunk = chunk;
 
-                    yield return chunk.Build();
+                    yield return chunk.Build(
+                        this.GetReductionLevel(chunkPos),
+                        this.GetHigherDetailNeighbors(chunkPos)
+                    );
                 }
             }
 
@@ -168,6 +171,55 @@ namespace MarcosPereira.Terrain {
             foreach (var key in toRemove) {
                 _ = this.chunks.Remove(key);
             }
+        }
+
+        private int GetReductionLevel((int x, int z) chunkPos) {
+            var center = new Vector2(
+                chunkPos.x + (TerrainGraph.CHUNK_WIDTH / 2f),
+                chunkPos.z + (TerrainGraph.CHUNK_WIDTH / 2f)
+            );
+
+            var centerChunk = new Vector2(
+                this.centerChunk.x + (TerrainGraph.CHUNK_WIDTH / 2f),
+                this.centerChunk.z + (TerrainGraph.CHUNK_WIDTH / 2f)
+            );
+
+            float distance = Vector2.Distance(center, centerChunk);
+
+            float viewLength =
+                this.terrainGraph.viewDistance * TerrainGraph.CHUNK_WIDTH;
+
+            return Mathf.FloorToInt(distance / viewLength);
+        }
+
+        private Side GetHigherDetailNeighbors((int x, int z) chunkPos) {
+            int reductionLevel = this.GetReductionLevel(chunkPos);
+
+            var neighbors = new Vector2Int[] {
+                new Vector2Int(0, 1),
+                new Vector2Int(1, 0),
+                new Vector2Int(0, -1),
+                new Vector2Int(-1, 0)
+            };
+
+            Side higherDetailNeighbors = Side.None;
+
+            for (int i = 0; i < neighbors.Length; i++) {
+                Vector2Int offset = neighbors[i];
+
+                Vector2Int neighborPos =
+                    new Vector2Int(chunkPos.x, chunkPos.z) +
+                    (offset * TerrainGraph.CHUNK_WIDTH);
+
+                int neighborReductionLevel =
+                    this.GetReductionLevel((neighborPos.x, neighborPos.y));
+
+                if (neighborReductionLevel < reductionLevel) {
+                    higherDetailNeighbors |= (Side) (1 << i);
+                }
+            }
+
+            return higherDetailNeighbors;
         }
     }
 }

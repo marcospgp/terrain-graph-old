@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using MarcosPereira.UnityUtilities;
 using UnityEngine;
@@ -6,15 +7,18 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
     public static class MeshBuilder {
         public static async Task<Mesh> BuildChunkMesh(
             Chunk chunk,
-            string name = "Unnamed mesh",
-            int vertexReductionFactor = 1
+            int reductionLevel,
+            Side higherDetailNeighbors,
+            string name = "Unnamed mesh"
         ) {
             // Width in vertices.
             // Chunk is built with a border in order to get accurate normals at
             // chunk edge.
             int w = chunk.borderedHeightmap.GetLength(0);
 
-            float step = (w - 3) / vertexReductionFactor;
+            // Step is 2^reductionLevel.
+            // Each reduction level cuts the number of vertices in half.
+            int step = 1 << reductionLevel;
 
             var vertices = new Vector3[w * w];
             int[] triangles = new int[(w - 1) * (w - 1) * 2 * 3];

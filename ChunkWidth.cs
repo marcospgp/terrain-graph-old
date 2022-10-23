@@ -1,12 +1,12 @@
-// Chunk width must be a power of two due to how their lower detail meshes are
-// generated.
 namespace MarcosPereira.Terrain {
+    // Chunk width must be power of two to simplify building lower detail
+    // meshes.
     public enum ChunkWidth : int {
-        _8,
-        _16,
-        _32,
-        _64,
-        _128,
-        _256
+        _8 = 8,
+        _16 = 16,
+        _32 = 32,
+        _64 = 64,
+        _128 = 128,
+        _256 = 256
     }
 }

@@ -13,7 +13,9 @@ namespace MarcosPereira.Terrain {
         Justification = "Choosing order fields are displayed in inspector."
     )]
     public class TerrainGraph : MonoBehaviour {
-        public const ChunkWidth CHUNK_WIDTH = 16;
+        // Chunk width must be a power of two due to how lower detail meshes are
+        // generated.
+        public const int CHUNK_WIDTH = (int) ChunkWidth._16;
 
         [Header("References")]
 
