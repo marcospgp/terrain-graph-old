@@ -16,7 +16,7 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
 
         public float[,] borderedHeightmap;
 
-        public float[,] vertexNormals;
+        public Vector3[,] vertexNormals;
 
         private readonly TerrainGraph terrainGraph;
 
@@ -61,17 +61,19 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
             int reductionLevel,
             Side higherDetailNeighbor
         ) {
+            UnityEngine.Debug.Log(
+                $"Setting quality: reduction level {reductionLevel}, hq sides {higherDetailNeighbor}"
+            );
             if (this.borderedHeightmap == null) {
                 yield return this.GetHeightmap();
             }
 
             if (this.vertexNormals == null) {
-                Task<float[,]> t =
-                    SafeTask.Run(() => this.CalculateVertexNormals());
+                Task<Vector3[,]> t = MeshBuilder.CalculateVertexNormals(this);
 
                 yield return t.AsCoroutine();
 
-                this.CalculateVertexNormals
+                this.vertexNormals = t.Result;
             }
 
             Task<Mesh> t2 = MeshBuilder.BuildChunkMesh(
@@ -109,11 +111,6 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
             yield return t.AsCoroutine();
 
             this.borderedHeightmap = t.Result;
-        }
-
-        private float[,] CalculateVertexNormals() {
-            int w = this.borderedHeightmap.GetLength(0) - 1;
-            float[,] vertexNormals = new float[w, w];
         }
     }
 }

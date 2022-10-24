@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using MarcosPereira.UnityUtilities;
 using UnityEngine;
@@ -12,15 +11,14 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             string name = "Unnamed mesh"
         ) {
             // Width in vertices.
-            // Chunk is built with a border in order to get accurate normals at
-            // chunk edge.
-            int w = chunk.borderedHeightmap.GetLength(0);
+            int w = chunk.borderedHeightmap.GetLength(0) - 2;
 
             // Step is 2^reductionLevel.
             // Each reduction level cuts the number of vertices in half.
             int step = 1 << reductionLevel;
 
             var vertices = new Vector3[w * w];
+            var normals = new Vector3[w * w];
             int[] triangles = new int[(w - 1) * (w - 1) * 2 * 3];
 
             await SafeTask.Run(() => {
@@ -28,24 +26,23 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
                     for (int j = 0; j < w; j++) {
                         var vertex = new Vector3(
                             i,
-                            chunk.borderedHeightmap[i, j],
+                            chunk.borderedHeightmap[i + 1, j + 1],
                             j
                         );
 
-                        // Offset vertex by border width so that mesh origin
-                        // ends up in the right place.
-                        vertex -= new Vector3(1f, 0f, 1f);
+                        int vi = GetIndex(i, j, w);
 
-                        vertices[GetIndex(i, j, w)] = vertex;
+                        vertices[vi] = vertex;
+                        normals[vi] = chunk.vertexNormals[i, j];
 
                         if (i > 0 && j > 0) {
                             int ti = GetTriangleIndex(i, j, w);
 
-                            triangles[ti] = GetIndex(i, j, w);
+                            triangles[ti] = vi;
                             triangles[ti + 1] = GetIndex(i - 1, j - 1, w);
                             triangles[ti + 2] = GetIndex(i - 1, j, w);
 
-                            triangles[ti + 3] = GetIndex(i, j, w);
+                            triangles[ti + 3] = vi;
                             triangles[ti + 4] = GetIndex(i, j - 1, w);
                             triangles[ti + 5] = GetIndex(i - 1, j - 1, w);
                         }
@@ -53,48 +50,11 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
                 }
             });
 
-            var borderedMesh = new Mesh() {
-                vertices = vertices,
-                triangles = triangles
-            };
-
-            borderedMesh.RecalculateNormals();
-
-            Vector3[] normals = borderedMesh.normals;
-
-            // Now that we have calculated correct normals, create non-bordered mesh.
-
-            int w2 = w - 2;
-            var vertices2 = new Vector3[w2 * w2];
-            var normals2 = new Vector3[w2 * w2];
-            int[] triangles2 = new int[(w2 - 1) * (w2 - 1) * 2 * 3];
-
-            await SafeTask.Run(() => {
-                for (int i = 0; i < w2; i++) {
-                    for (int j = 0; j < w2; j++) {
-                        vertices2[GetIndex(i, j, w2)] = vertices[GetIndex(i + 1, j + 1, w)];
-                        normals2[GetIndex(i, j, w2)] = normals[GetIndex(i + 1, j + 1, w)];
-
-                        if (i > 0 && j > 0) {
-                            int ti = GetTriangleIndex(i, j, w2);
-
-                            triangles2[ti] = GetIndex(i, j, w2);
-                            triangles2[ti + 1] = GetIndex(i - 1, j - 1, w2);
-                            triangles2[ti + 2] = GetIndex(i - 1, j, w2);
-
-                            triangles2[ti + 3] = GetIndex(i, j, w2);
-                            triangles2[ti + 4] = GetIndex(i, j - 1, w2);
-                            triangles2[ti + 5] = GetIndex(i - 1, j - 1, w2);
-                        }
-                    }
-                }
-            });
-
             var mesh = new Mesh() {
                 name = name,
-                vertices = vertices2,
-                normals = normals2,
-                triangles = triangles2
+                vertices = vertices,
+                normals = normals,
+                triangles = triangles
             };
 
             // Do not optimize as meshes are created at run time.
@@ -103,15 +63,26 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             return mesh;
         }
 
-        // Get the vertex array index of a vertex with the given coordinates,
-        // belonging to a chunk of given width.
+        public static async Task<Vector3[,]> CalculateVertexNormals(Chunk chunk) {
+            int w = chunk.borderedHeightmap.GetLength(0) - 2;
+            var normals = new Vector3[w, w];
+
+            await SafeTask.Run(() => {
+                for (int i = 0; i < w; i++) {
+                    for (int j = 0; j < w; j++) {
+                        // TODO
+                        normals[i, j] = Vector3.up;
+                    }
+                }
+            });
+
+            return normals;
+        }
+
+        // Get the index of the vertex at (X, Z) in a chunk of given width.
         private static int GetIndex(int x, int z, int width) => (z * width) + x;
 
         private static int GetTriangleIndex(int x, int z, int width) =>
             (((z - 1) * (width - 1)) + (x - 1)) * 2 * 3;
-
-        // TODO?
-        // private static bool IsBorder(int x, int z, int width) =>
-
     }
 }

@@ -64,9 +64,8 @@ namespace MarcosPereira.Terrain {
             // Used to select coordinates within the radius, as we loop defining
             // a plane, not a disk.
             bool IsWithinRadius((int x, int z) pos) {
-                int norm = Mathf.FloorToInt(
-                    Mathf.Sqrt(Mathf.Pow(pos.x, 2f) + Mathf.Pow(pos.z, 2f))
-                );
+                float norm =
+                    Mathf.Sqrt(Mathf.Pow(pos.x, 2f) + Mathf.Pow(pos.z, 2f));
 
                 return norm <= radius;
             }
@@ -140,7 +139,7 @@ namespace MarcosPereira.Terrain {
                     this.chunks.Add(chunkPos, chunk);
                     this.pendingChunk = chunk;
 
-                    yield return chunk.Build(
+                    yield return chunk.SetQuality(
                         this.GetReductionLevel(chunkPos),
                         this.GetHigherDetailNeighbors(chunkPos)
                     );
@@ -186,8 +185,13 @@ namespace MarcosPereira.Terrain {
 
             float distance = Vector2.Distance(center, centerChunk);
 
+            // View length = chunk width * (view distance + 1)
+            // The + 1 is to compensate for the center chunk, which is not
+            // included in view distance.
+            // Goal is that rendering only up to 1 viewDistance will make all
+            // chunks have reduction level 0.
             float viewLength =
-                this.terrainGraph.viewDistance * TerrainGraph.CHUNK_WIDTH;
+                (this.terrainGraph.viewDistance + 1) * TerrainGraph.CHUNK_WIDTH;
 
             return Mathf.FloorToInt(distance / viewLength);
         }
