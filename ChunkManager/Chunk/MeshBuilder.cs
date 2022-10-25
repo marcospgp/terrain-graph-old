@@ -103,19 +103,40 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
 
             var normals = new Vector3[bw - 2, bw - 2];
 
-            static Vector3 TriangleNormal(Vector3 a, Vector3 b, Vector3 c) =>
-                Vector3.Cross(b - a, c - a);
-
             await SafeTask.Run(() => {
                 for (int i = 1; i < bw - 1; i++) {
                     for (int j = 1; j < bw - 1; j++) {
-                        // TODO
-                        normals[i - 1, j - 1] = Vector3.up;
+                        normals[i - 1, j - 1] = GetVertexNormal(chunk, (i, j));
                     }
                 }
             });
 
             return normals;
+        }
+
+        private static Vector3 GetVertexNormal(Chunk chunk, (int x, int z) pos) {
+            Vector3 normal = Vector3.zero;
+
+            float[,] bhm = chunk.borderedHeightmap;
+
+            foreach ((int, int)[] t in vertexNormalTriangles) {
+                var v = new (int x, int z)[3];
+
+                for (int i = 0; i < 3; i++) {
+                    (int x, int z) offset = t[i];
+                    v[i] = pos.Add(offset);
+                }
+
+                var triangle = new Vector3[3];
+
+                triangle[0] = new Vector3(v[0].x, bhm[v[0].x, v[0].z], v[0].z);
+                triangle[1] = new Vector3(v[1].x, bhm[v[1].x, v[1].z], v[1].z);
+                triangle[2] = new Vector3(v[2].x, bhm[v[2].x, v[2].z], v[2].z);
+
+                normal += Vector3.Cross(triangle[1] - triangle[0], triangle[2] - triangle[0]);
+            }
+
+            return normal;
         }
 
         // Get the index of the vertex at (X, Z) in a chunk of given width.
