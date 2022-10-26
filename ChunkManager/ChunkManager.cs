@@ -116,7 +116,10 @@ namespace MarcosPereira.Terrain {
                 this.pendingChunk.Destroy();
             }
 
-            int radius = 1 + this.terrainGraph.viewDistance;
+            // Add 1 because center chunk doesn't count for view distance.
+            // Multiply view distance in order to generate lower detail chunks
+            // for the horizon.
+            int radius = 1 + (this.terrainGraph.viewDistance * 4);
 
             IEnumerable<(int, int)> spiral = Spiral(radius);
 
