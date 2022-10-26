@@ -29,7 +29,7 @@ namespace MarcosPereira.Terrain {
             );
 
             this.updateCenterChunkCoroutine = this.terrainGraph.StartCoroutine(
-                this.UpdateCenterChunk(newCenterChunk)
+                this.UpdateChunks(newCenterChunk)
             );
         }
 
@@ -46,7 +46,7 @@ namespace MarcosPereira.Terrain {
             this.chunks.Clear();
 
             this.updateCenterChunkCoroutine = this.terrainGraph.StartCoroutine(
-                this.UpdateCenterChunk(this.centerChunk)
+                this.UpdateChunks(this.centerChunk)
             );
         }
 
@@ -103,7 +103,7 @@ namespace MarcosPereira.Terrain {
             }
         }
 
-        private IEnumerator UpdateCenterChunk((int, int) newCenterChunk) {
+        private IEnumerator UpdateChunks((int, int) newCenterChunk) {
             this.centerChunk = newCenterChunk;
 
             if (this.updateCenterChunkCoroutine != null) {
