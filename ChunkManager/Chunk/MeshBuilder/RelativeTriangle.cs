@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS.MeshBuilderNS {
@@ -56,6 +57,12 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS.MeshBuilderNS {
 
         public static RelativeTriangle operator /(
             RelativeTriangle t,
+            int u
+        ) =>
+            RelativeTriangle.Divide(t, u);
+
+        public static RelativeTriangle operator /(
+            RelativeTriangle t,
             (int x, int y) u
         ) {
             var uVec = new Vector2Int(u.x, u.y);
@@ -70,25 +77,12 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS.MeshBuilderNS {
 
         public static RelativeTriangle[] Multiply(
             RelativeTriangle[] ts,
-            (int x, int y) u
+            int u
         ) {
             var newTs = new RelativeTriangle[ts.Length];
 
             for (int i = 0; i < ts.Length; i++) {
                 newTs[i] = ts[i] * u;
-            }
-
-            return newTs;
-        }
-
-        public static RelativeTriangle[] Divide(
-            RelativeTriangle[] ts,
-            (int x, int y) u
-        ) {
-            var newTs = new RelativeTriangle[ts.Length];
-
-            for (int i = 0; i < ts.Length; i++) {
-                newTs[i] = ts[i] / u;
             }
 
             return newTs;
@@ -102,17 +96,28 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS.MeshBuilderNS {
         ) {
             var newTs = new RelativeTriangle[ts.Length];
 
-            static Vector2Int Turn(Vector2Int v) =>
-                new Vector2Int(v.y, -v.x);
+            Array.Copy(ts, newTs, ts.Length);
 
-            for (int i = 0; i < ts.Length; i++) {
-                for (int j = 0; j < ninetyDegreeTurns; j++) {
-                    newTs[i] = new RelativeTriangle(
-                        Turn(ts[i].a),
-                        Turn(ts[i].b),
-                        Turn(ts[i].c)
-                    );
+            Vector2Int Turn(Vector2Int v) {
+                if (ninetyDegreeTurns == 1) {
+                    return new Vector2Int(v.y, -v.x);
+                } else if (ninetyDegreeTurns == 2) {
+                    return new Vector2Int(-v.x, -v.y);
+                } else if (ninetyDegreeTurns == 3) {
+                    return new Vector2Int(-v.y, v.x);
                 }
+
+                throw new Exception(
+                    "RelativeTriangle: Unexpected number of turns."
+                );
+            }
+
+            for (int i = 0; i < newTs.Length; i++) {
+                newTs[i] = new RelativeTriangle(
+                    Turn(newTs[i].a),
+                    Turn(newTs[i].b),
+                    Turn(newTs[i].c)
+                );
             }
 
             return newTs;
@@ -127,6 +132,9 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS.MeshBuilderNS {
                 new Vector3(t.c.x, heightmap[t.c.x, t.c.y], t.c.y)
             );
         }
+
+        public override string ToString() =>
+            $"{this.GetType().Name}: {this.a}, {this.b}, {this.c}";
 
         private static RelativeTriangle Add(
             RelativeTriangle t,
@@ -145,6 +153,14 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS.MeshBuilderNS {
         ) =>
             new RelativeTriangle(
                 t.a * u, t.b * u, t.c * u
+            );
+
+        private static RelativeTriangle Divide(
+            RelativeTriangle t,
+            int u
+        ) =>
+            new RelativeTriangle(
+                t.a / u, t.b / u, t.c / u
             );
 
         private static RelativeTriangle Multiply(

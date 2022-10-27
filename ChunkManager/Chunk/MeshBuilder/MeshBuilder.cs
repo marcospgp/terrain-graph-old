@@ -78,14 +78,14 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
 
         // Baseline triangles - those built by a vertex with no higher detail
         // neighbor.
-
         private static readonly RelativeTriangle[] ts = new RelativeTriangle[] {
                 t0, t1, t2, t3, t0 + (1, -1), t1 + (1, -1), t2 + (-1, -1),
                 t3 + (-1, -1)
         };
 
         // Triangles built by vertex with higher detail upper neighbor.
-        // Multiplied by 2 to allow representing smaller triangles when
+        //
+        // Has a step size of 2 to allow representing smaller triangles when
         // bordering higher detail neighbors.
         private static readonly RelativeTriangle[] topHD = new RelativeTriangle[] {
             new RelativeTriangle((-2, 0), (-2, 2), (-1, 2)),
@@ -97,7 +97,7 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             ts[4] * 2, ts[5] * 2, ts[6] * 2, ts[7] * 2
         };
 
-        // Also multiplied by 2.
+        // Also has step size 2.
         private static readonly RelativeTriangle[] topRightHD = new RelativeTriangle[] {
             topHD[0], topHD[1], topHD[2], topHD[3],
             new RelativeTriangle((0, 0), (1, 2), (2, 1)),
@@ -105,32 +105,38 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             new RelativeTriangle((0, 0), (2, 1), (2, 0)),
             new RelativeTriangle((0, 0), (2, 0), (2, -1)),
             new RelativeTriangle((0, 0), (2, -1), (0, -2)),
-            new RelativeTriangle((0, -2), (2, -1), (2, -2))
+            new RelativeTriangle((0, -2), (2, -1), (2, -2)),
+            new RelativeTriangle((0, 0), (0, -2), (-2, 0)),
+            new RelativeTriangle((0, -2), (-2, -2), (-2, 0))
         };
 
         // Triangles built by each "even" vertex, taking into account possible
         // higher detail neighbor chunks.
-        // Also multiplied by 2.
-        private static readonly RelativeTriangle[][] vertexTriangles = new RelativeTriangle[][] {
-            // No higher detail neighbors
-            ts,
-            // Higher detail neighbor on top
-            topHD,
-            // Higher detail neighbor on top + right
-            topRightHD,
-            // Higher detail neighbor on right
-            RelativeTriangle.Turn90DegClockwise(topHD),
-            // Higher detail neighbor on right + bottom
-            RelativeTriangle.Turn90DegClockwise(topRightHD),
-            // Higher detail neighbor on bottom
-            RelativeTriangle.Multiply(topHD, (1, -1)),
-            // Higher detail neighbor on bottom + left
-            RelativeTriangle.Multiply(topRightHD, (-1, -1)),
-            // Higher detail neighbor on left
-            RelativeTriangle.Turn90DegClockwise(topHD, 3),
-            // Higher detail neighbor on left + top
-            RelativeTriangle.Multiply(topRightHD, (-1, 1))
-        };
+        //
+        // Note that all entries have a step size of 2, since one has to
+        // accommodate for smaller triangles when bordering a higher detail
+        // neighboring chunk.
+        private static readonly RelativeTriangle[][] vertexTrianglesStepSize2 =
+            new RelativeTriangle[][] {
+                // No higher detail neighbors
+                RelativeTriangle.Multiply(ts, 2),
+                // Higher detail neighbor on top
+                topHD,
+                // Higher detail neighbor on top + right
+                topRightHD,
+                // Higher detail neighbor on right
+                RelativeTriangle.Turn90DegClockwise(topHD),
+                // Higher detail neighbor on right + bottom
+                RelativeTriangle.Turn90DegClockwise(topRightHD),
+                // Higher detail neighbor on bottom
+                RelativeTriangle.Turn90DegClockwise(topHD, 2),
+                // Higher detail neighbor on bottom + left
+                RelativeTriangle.Turn90DegClockwise(topRightHD, 2),
+                // Higher detail neighbor on left
+                RelativeTriangle.Turn90DegClockwise(topHD, 3),
+                // Higher detail neighbor on left + top
+                RelativeTriangle.Turn90DegClockwise(topRightHD, 2)
+            };
 
         // Adjacent triangles, used to calculate vertex normals.
         // For this, we assume highest detail level.
@@ -178,10 +184,10 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             // Build triangles first so we know which vertices we'll need
             void BuildTriangles((int i, int j) pos) {
                 RelativeTriangle[] ts =
-                    GetVertexTriangles(higherDetailNeighbor);
+                    GetVertexTrianglesStepSize2(pos, w, step, higherDetailNeighbor);
 
                 foreach (RelativeTriangle offset in ts) {
-                    var triangle = pos + (offset * step);
+                    var triangle = pos + ((offset * step) / 2);
 
                     triangles.Add(GetIndex(triangle.a, w));
                     triangles.Add(GetIndex(triangle.b, w));
@@ -199,7 +205,6 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             var normals = new List<Vector3>();
             int[] map = new int[w * w];
 
-            // Build vertices
             for (int i = 0; i < map.Length; i++) {
                 map[i] = -1;
             }
@@ -223,22 +228,6 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
 
                 triangles[t] = map[index];
             }
-
-            map = null;
-
-            // for (int i = 0; i < w; i += step) {
-            //     for (int j = 0; j < w; j += step) {
-            //         if (i == 0 && higherDetailNeighbor.HasFlag(Side.Down)) {
-
-            //         } else if (i == w - 1 && higherDetailNeighbor.HasFlag(Side.Up)) {
-
-            //         } else if (j == 0 && higherDetailNeighbor.HasFlag(Side.Left)) {
-
-            //         } else if (j == w - 1 && higherDetailNeighbor.HasFlag(Side.Right)) {
-
-            //         }
-            //     }
-            // }
 
             var mesh = new Mesh() {
                 name = name,
@@ -301,36 +290,81 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
         private static Vector2Int GetIndexPosition(int i, int width) =>
             new Vector2Int(i % width, i / width);
 
-        private static RelativeTriangle[] GetVertexTriangles(Side higherDetailNeighbor) {
-            Side h = higherDetailNeighbor;
+        private static RelativeTriangle[] GetVertexTrianglesStepSize2(
+            (int x, int z) pos,
+            int width,
+            int step,
+            Side higherDetailNeighbor
+        ) {
+            Side hd = higherDetailNeighbor;
+            var ts = MeshBuilder.vertexTrianglesStepSize2;
 
-            if (h.HasFlag(Side.Up)) {
-                if (h.HasFlag(Side.Right)) {
-                    return vertexTriangles[2];
+            Side b = GetBorder(pos, width, step);
+
+            if (hd.HasFlag(Side.Up) && b.HasFlag(Side.Up)) {
+                if (hd.HasFlag(Side.Right) && b.HasFlag(Side.Right)) {
+                    return ts[2];
                 }
 
-                return vertexTriangles[1];
-            } else if (h.HasFlag(Side.Right)) {
-                if (h.HasFlag(Side.Down)) {
-                    return vertexTriangles[4];
+                return ts[1];
+            } else if (hd.HasFlag(Side.Right) && b.HasFlag(Side.Right)) {
+                if (hd.HasFlag(Side.Down) && b.HasFlag(Side.Down)) {
+                    return ts[4];
                 }
 
-                return vertexTriangles[3];
-            } else if (h.HasFlag(Side.Down)) {
-                if (h.HasFlag(Side.Left)) {
-                    return vertexTriangles[6];
+                return ts[3];
+            } else if (hd.HasFlag(Side.Down) && b.HasFlag(Side.Down)) {
+                if (hd.HasFlag(Side.Left) && b.HasFlag(Side.Left)) {
+                    return ts[6];
                 }
 
-                return vertexTriangles[5];
-            } else if (h.HasFlag(Side.Left)) {
-                if (h.HasFlag(Side.Up)) {
-                    return vertexTriangles[8];
+                return ts[5];
+            } else if (hd.HasFlag(Side.Left) && b.HasFlag(Side.Left)) {
+                if (hd.HasFlag(Side.Up) && b.HasFlag(Side.Up)) {
+                    return ts[8];
                 }
 
-                return vertexTriangles[7];
+                return ts[7];
             }
 
-            return vertexTriangles[0];
+            return ts[0];
+        }
+
+        private static Side GetBorder(
+            (int x, int z) vertex,
+            int width,
+            int step
+        ) {
+            int first = step;
+            int last = width - step - 1;
+
+            if (vertex.z == last) {
+                if (vertex.x == last) {
+                    return Side.Up | Side.Right;
+                }
+
+                return Side.Up;
+            } else if (vertex.x == last) {
+                if (vertex.z == first) {
+                    return Side.Right | Side.Down;
+                }
+
+                return Side.Right;
+            } else if (vertex.z == first) {
+                if (vertex.x == first) {
+                    return Side.Down | Side.Left;
+                }
+
+                return Side.Down;
+            } else if (vertex.x == first) {
+                if (vertex.z == last) {
+                    return Side.Left | Side.Up;
+                }
+
+                return Side.Left;
+            }
+
+            return Side.None;
         }
     }
 }
