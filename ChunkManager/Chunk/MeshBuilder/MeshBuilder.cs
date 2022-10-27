@@ -135,7 +135,7 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
                 // Higher detail neighbor on left
                 RelativeTriangle.Turn90DegClockwise(topHD, 3),
                 // Higher detail neighbor on left + top
-                RelativeTriangle.Turn90DegClockwise(topRightHD, 2)
+                RelativeTriangle.Turn90DegClockwise(topRightHD, 3)
             };
 
         // Adjacent triangles, used to calculate vertex normals.
