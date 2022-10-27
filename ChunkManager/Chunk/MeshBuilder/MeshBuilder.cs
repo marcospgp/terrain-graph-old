@@ -296,38 +296,34 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             int step,
             Side higherDetailNeighbor
         ) {
-            Side hd = higherDetailNeighbor;
-            var ts = MeshBuilder.vertexTrianglesStepSize2;
+            var vts = MeshBuilder.vertexTrianglesStepSize2;
 
+            Side hd = higherDetailNeighbor;
             Side b = GetBorder(pos, width, step);
 
-            if (hd.HasFlag(Side.Up) && b.HasFlag(Side.Up)) {
-                if (hd.HasFlag(Side.Right) && b.HasFlag(Side.Right)) {
-                    return ts[2];
-                }
+            Side hdb = hd & b;
 
-                return ts[1];
-            } else if (hd.HasFlag(Side.Right) && b.HasFlag(Side.Right)) {
-                if (hd.HasFlag(Side.Down) && b.HasFlag(Side.Down)) {
-                    return ts[4];
-                }
-
-                return ts[3];
-            } else if (hd.HasFlag(Side.Down) && b.HasFlag(Side.Down)) {
-                if (hd.HasFlag(Side.Left) && b.HasFlag(Side.Left)) {
-                    return ts[6];
-                }
-
-                return ts[5];
-            } else if (hd.HasFlag(Side.Left) && b.HasFlag(Side.Left)) {
-                if (hd.HasFlag(Side.Up) && b.HasFlag(Side.Up)) {
-                    return ts[8];
-                }
-
-                return ts[7];
+            if (hdb == Side.None) {
+                return vts[0];
+            } else if (hdb == Side.Up) {
+                return vts[1];
+            } else if (hdb == (Side.Up | Side.Right)) {
+                return vts[2];
+            } else if (hdb == Side.Right) {
+                return vts[3];
+            } else if (hdb == (Side.Right | Side.Down)) {
+                return vts[4];
+            } else if (hdb == Side.Down) {
+                return vts[5];
+            } else if (hdb == (Side.Down | Side.Left)) {
+                return vts[6];
+            } else if (hdb == Side.Left) {
+                return vts[7];
+            } else if (hdb == (Side.Left | Side.Up)) {
+                return vts[8];
+            } else {
+                throw new System.Exception("MeshBuilder: Unexpected Side value.");
             }
-
-            return ts[0];
         }
 
         private static Side GetBorder(
@@ -338,33 +334,25 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             int first = step;
             int last = width - step - 1;
 
-            if (vertex.z == last) {
-                if (vertex.x == last) {
-                    return Side.Up | Side.Right;
-                }
+            Side side = Side.None;
 
-                return Side.Up;
-            } else if (vertex.x == last) {
-                if (vertex.z == first) {
-                    return Side.Right | Side.Down;
-                }
-
-                return Side.Right;
-            } else if (vertex.z == first) {
-                if (vertex.x == first) {
-                    return Side.Down | Side.Left;
-                }
-
-                return Side.Down;
-            } else if (vertex.x == first) {
-                if (vertex.z == last) {
-                    return Side.Left | Side.Up;
-                }
-
-                return Side.Left;
+            if (vertex.x == first) {
+                side |= Side.Left;
             }
 
-            return Side.None;
+            if (vertex.x == last) {
+                side |= Side.Right;
+            }
+
+            if (vertex.z == first) {
+                side |= Side.Down;
+            }
+
+            if (vertex.z == last) {
+                side |= Side.Up;
+            }
+
+            return side;
         }
     }
 }

@@ -61,9 +61,6 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
             int reductionLevel,
             Side higherDetailNeighbor
         ) {
-            UnityEngine.Debug.Log(
-                $"Setting quality: reduction level {reductionLevel}, hq sides {higherDetailNeighbor}"
-            );
             if (this.borderedHeightmap == null) {
                 yield return this.GetHeightmap();
             }
