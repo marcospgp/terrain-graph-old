@@ -133,20 +133,21 @@ namespace MarcosPereira.Terrain {
 
                 activeChunks.Add(chunkPos);
 
-                if (!this.chunks.ContainsKey(chunkPos)) {
-                    var chunk = new Chunk(
+                if (!this.chunks.TryGetValue(chunkPos, out Chunk chunk)) {
+                    chunk = new Chunk(
                         chunkPos,
                         this.terrainGraph
                     );
 
                     this.chunks.Add(chunkPos, chunk);
-                    this.pendingChunk = chunk;
-
-                    yield return chunk.SetQuality(
-                        this.GetReductionLevel(chunkPos),
-                        this.GetHigherDetailNeighbors(chunkPos)
-                    );
                 }
+
+                this.pendingChunk = chunk;
+
+                yield return chunk.SetQuality(
+                    this.GetReductionLevel(chunkPos),
+                    this.GetHigherDetailNeighbors(chunkPos)
+                );
             }
 
             // Destroy non active chunks.
