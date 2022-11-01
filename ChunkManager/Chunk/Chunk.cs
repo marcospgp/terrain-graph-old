@@ -86,7 +86,10 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
 
             this.meshFilter.mesh = mesh;
 
-            if (reductionLevel == 0) {
+            if (
+                reductionLevel == 0 &&
+                !this.gameObject.TryGetComponent<MeshCollider>(out _)
+            ) {
                 _ = this.gameObject.AddComponent<MeshCollider>();
             }
 
