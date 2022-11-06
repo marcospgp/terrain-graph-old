@@ -104,8 +104,6 @@ namespace MarcosPereira.Terrain {
         }
 
         private IEnumerator UpdateChunks((int, int) newCenterChunk) {
-            UnityEngine.Debug.Log("Updating chunks...");
-
             this.centerChunk = newCenterChunk;
 
             if (this.updateCenterChunkCoroutine != null) {
@@ -183,8 +181,6 @@ namespace MarcosPereira.Terrain {
                 x.Value.Destroy();
                 _ = this.chunks.Remove(x.Key);
             }
-
-            UnityEngine.Debug.Log("Finished updating chunks.");
         }
 
         private int GetReductionLevel((int x, int z) chunkPos) {
