@@ -104,6 +104,8 @@ namespace MarcosPereira.Terrain {
         }
 
         private IEnumerator UpdateChunks((int, int) newCenterChunk) {
+            UnityEngine.Debug.Log("Updating chunks...");
+
             this.centerChunk = newCenterChunk;
 
             if (this.updateCenterChunkCoroutine != null) {
@@ -153,29 +155,36 @@ namespace MarcosPereira.Terrain {
             // Destroy non active chunks.
             var toRemove = new List<KeyValuePair<(int, int), Chunk>>();
             foreach (var x in this.chunks) {
+                // Wait a frame to avoid slowing game down
+                yield return null;
+
+                bool isActive = false;
                 foreach ((int, int) pos in activeChunks) {
                     if (x.Key == pos) {
-                        // Chunk is active, skip
+                        isActive = true;
                         break;
                     }
+                }
+
+                if (isActive) {
+                    continue;
                 }
 
                 // Chunk is not active, mark for removal
                 // (can't remove now because we're inside the foreach)
                 toRemove.Add(x);
-
-                // Wait a frame to avoid slowing game down
-                yield return null;
             }
 
             foreach (var x in toRemove) {
+                yield return null;
+
                 // Must not yield between destroying chunk and removing its key from chunks
                 // dictionary, at the risk of this coroutine being interrupted inbetween.
                 x.Value.Destroy();
                 _ = this.chunks.Remove(x.Key);
-
-                yield return null;
             }
+
+            UnityEngine.Debug.Log("Finished updating chunks.");
         }
 
         private int GetReductionLevel((int x, int z) chunkPos) {
