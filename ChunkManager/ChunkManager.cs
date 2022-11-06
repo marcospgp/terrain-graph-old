@@ -151,28 +151,30 @@ namespace MarcosPereira.Terrain {
             }
 
             // Destroy non active chunks.
-            var toRemove = new List<(int, int)>();
+            var toRemove = new List<KeyValuePair<(int, int), Chunk>>();
             foreach (var x in this.chunks) {
-                bool active = false;
-
                 foreach ((int, int) pos in activeChunks) {
                     if (x.Key == pos) {
-                        active = true;
+                        // Chunk is active, skip
                         break;
                     }
                 }
 
-                if (!active) {
-                    x.Value.Destroy();
-                    toRemove.Add(x.Key);
-                }
+                // Chunk is not active, mark for removal
+                // (can't remove now because we're inside the foreach)
+                toRemove.Add(x);
 
                 // Wait a frame to avoid slowing game down
                 yield return null;
             }
 
-            foreach (var key in toRemove) {
-                _ = this.chunks.Remove(key);
+            foreach (var x in toRemove) {
+                // Must not yield between destroying chunk and removing its key from chunks
+                // dictionary, at the risk of this coroutine being interrupted inbetween.
+                x.Value.Destroy();
+                _ = this.chunks.Remove(x.Key);
+
+                yield return null;
             }
         }
 
