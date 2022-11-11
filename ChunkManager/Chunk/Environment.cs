@@ -6,6 +6,11 @@ using UnityEngine;
 
 namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
     public static class Environment {
+        // Minimum distance between objects.
+        // Changing this value will affect how much vegetation is spawned,
+        // even if all other configuration remains the same.
+        private const float MIN_SPACING = 0.5f;
+
         public static void WarnUnreadableMeshes(List<EnvironmentObjectGroup> envObjGroups) {
             static void LogReadWriteWarning(string meshName, string objName) =>
                 UnityEngine.Debug.LogWarning(
@@ -34,51 +39,42 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             Chunk chunk,
             TerrainGraph terrainGraph
         ) {
-            Task<float[,]> t2 =
+            Task<float[,]> t =
                 terrainGraph.terrainNode.GetEnvironmentObjectDensity(
                     chunk.pos,
                     TerrainGraph.CHUNK_WIDTH
                 );
 
-            yield return t2.AsCoroutine();
+            yield return t.AsCoroutine();
 
-            float[,] environmentObjectDensity = t2.Result;
-
-            // Minimum distance between objects.
-            // Changing this value will affect how much vegetation is spawned,
-            // even if all other configuration remains the same.
-            const float minSpacing = 0.1f;
+            float[,] environmentObjectDensity = t.Result;
 
             const int chunkWidth = TerrainGraph.CHUNK_WIDTH;
 
             // Space between objects must be multiple of chunk width to ensure
             // uniform distribution.
-            float spacing = (float) chunkWidth / Mathf.Floor(chunkWidth / minSpacing);
+            float spacing = (float) chunkWidth / Mathf.Floor(chunkWidth / MIN_SPACING);
 
-            // Calculate total frequency
-            float envObjTotalFrequency = 0f;
-            foreach (EnvironmentObjectGroup group in terrainGraph.environmentObjectGroups) {
-                if (group.enabled) {
-                    envObjTotalFrequency += group.frequency;
+            List<EnvironmentObjectGroup> groups = terrainGraph.environmentObjectGroups;
+
+            // Linked list representing the order of priority of each object group waiting to be
+            // placed.
+            // We try to place objects following the order stored in this line.
+            // When an object is placed, its group is moved to the end of the line.
+            var placementLine = new LinkedList<int>();
+
+            for (int i = 0; i < groups.Count; i++) {
+                if (groups[i].enabled && groups[i].frequency > 0f) {
+                    _ = placementLine.AddLast(i);
                 }
             }
 
-            // If no groups enabled or all frequencies set to 0, cancel.
-            if (envObjTotalFrequency == 0f) {
+            // If no groups are going to be placed, stop here.
+            if (placementLine.Count == 0) {
                 yield break;
             }
 
-            bool PlaceObject((float, float) offset) =>
-                TryPlace(
-                    chunk.pos,
-                    offset,
-                    chunk.gameObject.transform,
-                    environmentObjectDensity,
-                    terrainGraph,
-                    envObjTotalFrequency
-                );
-
-            // Limit objects placed per frame to avoid slowing game down
+            // Limit objects placed per frame to avoid slowing game down too much.
             const int objectsPerFrame = 64;
             int counter = 0;
 
@@ -87,7 +83,16 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             // spaced along chunk borders.
             for (float i = spacing / 2; i < chunkWidth; i += spacing) {
                 for (float j = spacing / 2; j < chunkWidth; j += spacing) {
-                    if (PlaceObject((i, j))) {
+                    bool placed = TryPlace(
+                        new Vector2(chunk.pos.x + i, chunk.pos.z + j),
+                        (i, j),
+                        environmentObjectDensity,
+                        chunk.gameObject.transform,
+                        terrainGraph,
+                        placementLine
+                    );
+
+                    if (placed) {
                         counter++;
 
                         if (counter == objectsPerFrame) {
@@ -100,8 +105,8 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
 
             if (terrainGraph.useStaticBatching) {
                 // Combine chunk and vegetation into a static batch.
-                // This seemed to increase FPS a little compared to SRP batching
-                // and GPU instancing, but at the cost of too much memory.
+                // This seemed to increase FPS a little compared to SRP batching and GPU instancing,
+                // but at the cost of too much memory.
                 StaticBatchingUtility.Combine(chunk.gameObject);
             }
         }
@@ -110,12 +115,12 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
         /// Try to place a single instance of a prefab on a chunk.
         /// </summary>
         private static bool TryPlace(
-            (int x, int z) worldPos,
+            Vector2 worldPos,
             (float x, float z) offset,
-            Transform chunk,
             float[,] environmentObjectDensity,
+            Transform chunk,
             TerrainGraph terrainGraph,
-            float envObjTotalFrequency,
+            LinkedList<int> placementLine,
             float densityMultiplier = 1f,
             float scaleVariation = 0f
         ) {
@@ -124,62 +129,57 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
                 Mathf.FloorToInt(offset.z)
             ] * densityMultiplier;
 
-            // Get placement coordinates in world space.
-            float placeX = worldPos.x + offset.x;
-            float placeZ = worldPos.z + offset.z;
-
             // Roll deterministic dice to see if an object should be placed
-            float random = Hash.Get01(placeX, placeZ, "environment objects");
+            float random = Hash.Get01(worldPos.x, worldPos.y, "environment objects");
 
             if (random >= density) {
                 // No placing this time
                 return false;
             }
 
-            float random2 = Hash.Get01(placeX, placeZ, "which environment object group");
+            float random2 = Hash.Get01(worldPos.x, worldPos.y, "which environment object group");
 
-            EnvironmentObjectGroup group = null;
-            float accumulator = 0f;
-            int groupCount = terrainGraph.environmentObjectGroups.Count;
+            var groups = terrainGraph.environmentObjectGroups;
+            EnvironmentObjectGroup groupToPlace = null;
 
-            for (int i = 0; i < groupCount; i++) {
-                var g = terrainGraph.environmentObjectGroups[i];
-                if (!g.enabled) {
-                    continue;
-                }
+            var node = placementLine.First;
 
-                accumulator += g.frequency / envObjTotalFrequency;
-
-                // Avoid floating point inaccuracies by always picking last
-                // group if it gets to it
-                bool isLastGroup = i == groupCount - 1;
-
-                if (accumulator >= random2 || isLastGroup) {
-                    group = g;
+            while (node != null) {
+                if (groups[node.Value].frequency >= random2) {
+                    groupToPlace = terrainGraph.environmentObjectGroups[node.Value];
+                    placementLine.Remove(node);
+                    placementLine.AddLast(node);
                     break;
                 }
+
+                node = node.Next;
             }
 
-            if (!group.enabled || group.items.Count == 0) {
+            if (groupToPlace == null) {
                 return false;
             }
 
-            // Determine which prefab to place from given list.
-            float random3 = Hash.Get01Exclusive(placeX, placeZ, "which environment object");
-            int index = Mathf.CeilToInt(group.items.Count * random3) - 1;
-            GameObject prefab = group.items[index];
+            // Determine which object to place from given group.
+            float random3 = Hash.Get01Exclusive(worldPos.x, worldPos.y, "which environment object");
+            // Ceil because 1 is inclusive.
+            int index = Mathf.CeilToInt(groupToPlace.items.Count * random3) - 1;
+
+            GameObject prefab = groupToPlace.items[index];
 
             int maxHeight = terrainGraph.terrainNode.maxHeight;
 
             if (Physics.Raycast(
-                origin: new Vector3(placeX, maxHeight * 2f, placeZ),
+                origin: new Vector3(worldPos.x, maxHeight * 2f, worldPos.y),
                 direction: Vector3.down,
                 hitInfo: out RaycastHit hit,
                 maxDistance: Mathf.Infinity,
                 layerMask: 1 << terrainGraph.groundLayer
             )) {
                 // Check parent transform due to possible LODs
-                if (hit.transform != chunk && hit.transform.parent != chunk) {
+                if (
+                    hit.transform != chunk &&
+                    hit.transform.parent != chunk
+                ) {
                     UnityEngine.Debug.LogWarning(
                         "Terrain Graph: Hit unexpected gameobject " +
                         $"\"{hit.transform.name}\" while placing environment " +
@@ -196,15 +196,15 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
                 }
 
                 // Respect minimum height
-                if (hit.point.y < group.minimumHeight) {
+                if (hit.point.y < groupToPlace.minimumHeight) {
                     return false;
                 }
 
                 Environment.Instantiate(
                     prefab,
                     hit,
-                    parent: chunk,
-                    group.alignWithGround,
+                    parent: chunk.gameObject.transform,
+                    groupToPlace.alignWithGround,
                     scaleVariation,
                     terrainGraph.disableSRPBatching
                 );

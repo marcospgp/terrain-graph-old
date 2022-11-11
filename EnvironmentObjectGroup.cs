@@ -16,8 +16,8 @@ namespace MarcosPereira.Terrain {
         [Header("Settings")]
 
         [Tooltip(
-            "How often objects in this group will appear on the terrain, " +
-            "relative to objects in other (enabled) groups."
+            "How likely objects in this group are to be spawned on each placement point in the " +
+            "terrain."
         )]
         [Range(0f, 1f)]
         public float frequency = 1f;
