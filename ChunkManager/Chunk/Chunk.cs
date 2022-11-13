@@ -86,18 +86,17 @@ namespace MarcosPereira.Terrain.ChunkManagerNS {
 
             this.meshFilter.mesh = mesh;
 
-            if (
-                reductionLevel == 0 &&
-                !this.gameObject.TryGetComponent<MeshCollider>(out _)
-            ) {
-                _ = this.gameObject.AddComponent<MeshCollider>();
-            }
+            if (reductionLevel == 0) {
+                if (!this.gameObject.TryGetComponent<MeshCollider>(out _)) {
+                    _ = this.gameObject.AddComponent<MeshCollider>();
+                }
 
-            if (this.terrainGraph.placeEnvironmentObjects) {
-                yield return Environment.PlaceObjects(
-                    this,
-                    this.terrainGraph
-                );
+                if (this.terrainGraph.placeEnvironmentObjects) {
+                    yield return Environment.PlaceObjects(
+                        this,
+                        this.terrainGraph
+                    );
+                }
             }
         }
 

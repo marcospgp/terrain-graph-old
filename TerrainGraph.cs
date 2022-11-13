@@ -15,7 +15,9 @@ namespace MarcosPereira.Terrain {
     public class TerrainGraph : MonoBehaviour {
         // Chunk width must be a power of two due to how lower detail meshes are
         // generated.
-        public const int CHUNK_WIDTH = (int) ChunkWidth._16;
+        public const int CHUNK_WIDTH = (int) ChunkWidth._32;
+
+        public const int ENV_OBJ_PLACED_PER_FRAME = 32;
 
         [Header("References")]
 

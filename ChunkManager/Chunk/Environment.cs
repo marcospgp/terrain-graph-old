@@ -75,7 +75,7 @@ namespace MarcosPereira.Terrain.ChunkManagerNS.ChunkNS {
             }
 
             // Limit objects placed per frame to avoid slowing game down too much.
-            const int objectsPerFrame = 64;
+            const int objectsPerFrame = TerrainGraph.ENV_OBJ_PLACED_PER_FRAME;
             int counter = 0;
 
             // Place objects.
