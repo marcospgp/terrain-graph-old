@@ -1,5 +1,9 @@
 # Terrain Graph
 
+---
+This project has been abandoned because relying on Graph Tools Foundation from Unity was too much work. I spent too many hours cleaning that code and making it able to be compiled into a build, but ended up not being happy with the limitations of using it as a graph editor.
+---
+
 Graph Tools Foundation is a bit of a mess so had to include it here in part to be able to fix some things but also to do some heavy house cleaning in order to be able to compile it into a game build without including any of the editor-only code.
 
 A lot of quirkiness comes from that architectural requirement, in particular the way the node previews are updated when playing around with the graph. It goes a bit like:
