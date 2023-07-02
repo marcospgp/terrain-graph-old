@@ -2,7 +2,13 @@
 
 ---
 
-This project has been abandoned because relying on Graph Tools Foundation from Unity was too much work. I spent too many hours cleaning that code and making it able to be compiled into a build, but ended up not being happy with the limitations of using it as a graph editor.
+Deprecation notice:
+
+This project has been abandoned - relying on Graph Tools Foundation from Unity was too much work. I spent too many hours cleaning that code and making it able to be compiled into a build, but ended up not being happy with the limitations of using it as a graph editor.
+
+It has too many bugs and no official release. I was expecting the code to be cleaner and support to be stronger over time.
+
+I'm instead going to move my UI to the browser as much as possible because Unity UI is too quirky and less accessible :)
 
 ---
 
